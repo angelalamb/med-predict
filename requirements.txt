@@ -1,0 +1,30 @@
+# MedPredict dependencies
+
+# Data
+pandas>=2.0
+requests>=2.31
+python-dotenv>=1.0
+
+# PDF extraction
+pdfplumber>=0.10
+
+# Graph database
+neo4j>=5.0
+
+# Embeddings
+sentence-transformers>=2.7
+numpy>=1.26
+torch>=2.0          # Required by sentence-transformers
+
+# LLM generation (choose one or both)
+anthropic>=0.25
+openai>=1.30
+
+# UI
+streamlit>=1.35
+streamlit-agraph>=0.0.45
+markdown>=3.6
+
+# Testing
+pytest>=8.0
+pytest-mock>=3.14
