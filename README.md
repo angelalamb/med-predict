@@ -156,7 +156,9 @@ scanned PDFs that do not yield reliable text extraction.
 
 ## Setup
 
-Prerequisites: Python 3.11 or higher, a Neo4j AuraDB free tier account.
+Prerequisites: Python 3.11 or higher. For the graph database, use
+either a Neo4j AuraDB free tier account or run Neo4j locally with
+Docker.
 
 Create a virtual environment and install dependencies.
 
@@ -175,6 +177,20 @@ The .env file requires the following values.
     NEO4J_PASSWORD    Set when creating the AuraDB instance
     ANTHROPIC_API_KEY Your Anthropic API key
     LLM_MODEL         Defaults to claude-sonnet-4-20250514
+
+### Running Neo4j locally with Docker
+
+As an alternative to AuraDB, the included docker-compose.yml starts a
+local Neo4j 5 instance with APOC plugins enabled.
+
+    docker compose up -d
+
+The database will be available on bolt://localhost:7687 and the browser
+UI at http://localhost:7474. Use these values in your .env.
+
+    NEO4J_URI         bolt://localhost:7687
+    NEO4J_USERNAME    neo4j
+    NEO4J_PASSWORD    medpredict-local
 
 ---
 
