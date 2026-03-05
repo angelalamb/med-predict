@@ -9,7 +9,6 @@ Two passes:
 All writes are batched for performance.
 """
 
-import ast
 import re
 
 import pandas as pd
@@ -264,32 +263,6 @@ def load_nodes(driver) -> None:
 # ---------------------------------------------------------------------------
 # Edge loading
 # ---------------------------------------------------------------------------
-
-
-def _parse_predicate_numbers(raw: str) -> list[str]:
-    """
-    Parse the PREDICATENUMBER field, which may contain one or more
-    K-numbers separated by semicolons, commas, or spaces.
-
-    Args:
-        raw: Raw string value of the PREDICATENUMBER field.
-
-    Returns:
-        List of cleaned, uppercase K-number strings.
-    """
-    if not raw or pd.isna(raw):
-        return []
-
-    # Split on common separators
-    parts = re.split(r"[;,\s]+", str(raw).strip())
-    k_numbers = []
-    for part in parts:
-        cleaned = part.strip().upper()
-        # Validate basic K-number format: K followed by digits
-        if re.match(r"^K\d+$", cleaned):
-            k_numbers.append(cleaned)
-    return k_numbers
-
 
 def _build_edge_records(devices_df: pd.DataFrame) -> list[dict]:
     """
