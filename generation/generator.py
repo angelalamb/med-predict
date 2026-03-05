@@ -369,6 +369,6 @@ def generate(query: str, subgraph: dict, prompt_version: str = "v1") -> dict:
         usage=response.usage,
     )
 
-    logger.info("Analysis generation complete for query: %r", query[:80])
+    logger.info("Analysis generation complete")
 
     return result

@@ -142,7 +142,7 @@ def retrieve(
     seeds = search(query, top_k=top_k)
 
     if not seeds:
-        logger.warning("Semantic search returned no results for query: %r", query[:120])
+        logger.warning("Semantic search returned no results")
         return {"nodes": [], "edges": []}
 
     subgraph = expand(seeds, depth=depth)

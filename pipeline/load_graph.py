@@ -9,8 +9,6 @@ Two passes:
 All writes are batched for performance.
 """
 
-import re
-
 import pandas as pd
 from neo4j import GraphDatabase, basic_auth
 
@@ -264,7 +262,7 @@ def load_nodes(driver) -> None:
 # Edge loading
 # ---------------------------------------------------------------------------
 
-def _build_edge_records(devices_df: pd.DataFrame) -> list[dict]:
+def _build_edge_records() -> list[dict]:
     """
     Load predicate edge records from the extracted predicate edges CSV.
 
@@ -298,7 +296,7 @@ def load_edges(driver) -> None:
     Args:
         driver: Active Neo4j driver.
     """
-    records = _build_edge_records(devices_df=None)
+    records = _build_edge_records()
 
     logger.info("Loading %d PREDICATED_ON edges into Neo4j", len(records))
     _run_in_batches(
