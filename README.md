@@ -112,9 +112,10 @@ scanned PDFs that do not yield reliable text extraction.
 
 ## Project Structure
 
-    medpredict/
+    med-predict/
         config.py                   Central configuration and logging
         requirements.txt
+        docker-compose.yml
         .env.example
 
         pipeline/
@@ -123,12 +124,12 @@ scanned PDFs that do not yield reliable text extraction.
             filter_devices.py       Filters to neurostimulation records
             extract_text.py         PDF text extraction via pdfplumber
             parse_intended_use.py   Parses intended use statements
+            extract_predicates.py   Extracts predicate edges from FDA data
             embed.py                Generates and caches embeddings
             load_graph.py           Loads nodes and edges into Neo4j
 
         graph/
             connection.py           Neo4j driver singleton and session context
-            schema.py               Constraints and indexes
             queries.py              All Cypher queries as named functions
 
         retrieval/
@@ -142,12 +143,6 @@ scanned PDFs that do not yield reliable text extraction.
 
         app/
             streamlit_app.py        Two-panel Streamlit interface
-
-        tests/
-            test_pipeline.py
-            test_graph.py
-            test_retrieval.py
-            test_generation.py
 
         data/
             raw/                    Downloaded FDA files and PDFs
