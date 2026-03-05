@@ -1,6 +1,4 @@
 """
-pipeline/download_data.py
-
 Handles two download tasks:
   1. FDA 510(k) bulk flat files (structured records and product codes)
   2. Individual 510(k) summary PDFs for filtered devices

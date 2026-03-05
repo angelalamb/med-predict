@@ -1,6 +1,4 @@
 """
-generation/prompts.py
-
 All prompt templates used by the generation layer.
 
 Templates are versioned string constants.  The generator imports from

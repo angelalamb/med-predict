@@ -1,6 +1,4 @@
 """
-retrieval/retriever.py
-
 Public entry point for the retrieval layer.
 
 Orchestrates semantic search and graph traversal into a single call

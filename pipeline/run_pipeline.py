@@ -1,6 +1,4 @@
 """
-pipeline/run_pipeline.py
-
 Orchestrates the full data pipeline in sequence:
   1. Download FDA flat files
   2. Filter to neurostimulation devices

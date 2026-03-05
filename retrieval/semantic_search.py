@@ -1,6 +1,4 @@
 """
-retrieval/semantic_search.py
-
 Embeds a natural language query using the same model used at ingestion
 time, then runs a vector similarity search against the Neo4j device
 embedding index.

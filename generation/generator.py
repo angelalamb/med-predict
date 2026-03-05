@@ -1,6 +1,4 @@
 """
-generation/generator.py
-
 Formats the retrieved subgraph into prompt context, calls the LLM API,
 and returns a structured analysis response.
 

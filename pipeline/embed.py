@@ -1,6 +1,4 @@
 """
-pipeline/embed.py
-
 Generates sentence embeddings for intended use statements using
 sentence-transformers and stores them in a local cache.
 

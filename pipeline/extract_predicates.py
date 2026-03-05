@@ -1,6 +1,4 @@
 """
-pipeline/extract_predicates.py
-
 Extracts predicate K-numbers from previously extracted PDF text.
 
 A predicate device is one cited as a substantial equivalence reference.

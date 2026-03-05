@@ -1,6 +1,4 @@
 """
-pipeline/parse_intended_use.py
-
 Parses intended use / indications for use statements from raw extracted
 PDF text.  Uses header-based section detection followed by text cleanup.
 

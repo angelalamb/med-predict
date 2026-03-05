@@ -1,6 +1,4 @@
 """
-retrieval/graph_traversal.py
-
 Expands a set of seed Device nodes (from semantic search) by traversing
 the PREDICATED_ON graph in both directions.
 

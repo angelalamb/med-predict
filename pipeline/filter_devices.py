@@ -1,6 +1,4 @@
 """
-pipeline/filter_devices.py
-
 Loads the raw FDA 510(k) PMN flat file and filters it down to:
   - Neurostimulation product codes defined in config
   - Cleared decisions only

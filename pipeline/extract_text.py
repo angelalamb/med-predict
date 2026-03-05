@@ -1,6 +1,4 @@
 """
-pipeline/extract_text.py
-
 Extracts raw text from downloaded 510(k) summary PDFs using pdfplumber.
 Does not attempt OCR — skips any PDF that does not yield sufficient text.
 
