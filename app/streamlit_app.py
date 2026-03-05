@@ -11,6 +11,11 @@ Run with:
   streamlit run app/streamlit_app.py
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
@@ -749,14 +754,14 @@ def _run_analysis(query: str, top_k: int, depth: int) -> None:
                 "No matching devices found. Try broadening your device "
                 "description or reducing specificity."
             )
-            logger.warning("Retrieval returned empty subgraph for query: %r", query[:80])
+            logger.warning("Retrieval returned empty subgraph")
             return
 
         with st.spinner("Generating equivalence analysis…"):
             result = generate(query, subgraph)
 
         st.session_state.result = result
-        logger.info("Analysis complete for query: %r", query[:80])
+        logger.info("Analysis complete")
 
     except ValueError as exc:
         st.session_state.error = str(exc)
