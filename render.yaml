@@ -2,16 +2,12 @@
 # MedPredict — Render infrastructure as code
 #
 # Two web services, both built from the same Dockerfile:
-#   medpredict-api  — FastAPI backend  (port 8000)
-#   medpredict-app  — Streamlit frontend (port 8501)
+#   medpredict-api  — FastAPI backend
+#   medpredict-app  — Streamlit frontend
 #
-# Both services connect to Neo4j AuraDB. Set the secret env vars in the
-# Render dashboard under each service → Environment, or paste the AuraDB
-# credentials once and link both services to a shared Environment Group.
-#
-# Deploy:
-#   Push to GitHub → Render auto-deploys from the connected repo.
-#   First deploy: `render deploy` or trigger via the dashboard.
+# Render injects PORT automatically — do not override it here.
+# Set the secret env vars (sync: false) in the Render dashboard under
+# each service → Environment before deploying.
 # ---------------------------------------------------------------------------
 
 services:
@@ -23,20 +19,16 @@ services:
     name: medpredict-api
     runtime: docker
     dockerfilePath: ./Dockerfile
-    # Render injects $PORT; main.py reads it (see api/main.py)
     dockerCommand: python3 api/main.py
     healthCheckPath: /health
     envVars:
-      # --- Runtime ---
-      - key: PORT
-        value: "8000"
       - key: ENVIRONMENT
         value: production
       - key: LLM_MODEL
         value: claude-sonnet-4-20250514
       # --- Secrets: set these in the Render dashboard, never commit values ---
       - key: NEO4J_URI
-        sync: false   # e.g. neo4j+s://xxxxxxxx.databases.neo4j.io
+        sync: false 
       - key: NEO4J_USERNAME
         sync: false   # neo4j
       - key: NEO4J_PASSWORD
@@ -44,7 +36,7 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: API_KEY
-        sync: false   # strong random secret for X-API-Key header
+        sync: false  
 
   # --------------------------------------------------------------------------
   # Streamlit frontend
@@ -60,9 +52,6 @@ services:
       --server.headless true
     healthCheckPath: /_stcore/health
     envVars:
-      # --- Runtime ---
-      - key: PORT
-        value: "8501"
       - key: LLM_MODEL
         value: claude-sonnet-4-20250514
       # --- Secrets: same AuraDB + Anthropic credentials as the API ---
