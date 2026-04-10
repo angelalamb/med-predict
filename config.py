@@ -13,6 +13,57 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+class Config:
+    """Central configuration"""
+    
+    # Neo4j (from environment variables)
+    NEO4J_URI = os.getenv("NEO4J_URI")
+    NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+    NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+    
+    # Anthropic API
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    
+    # API Key for your API
+    API_KEY = os.getenv("API_KEY")
+    
+    @classmethod
+    def validate(cls):
+        """Validate required environment variables"""
+        required = {
+            "NEO4J_URI": cls.NEO4J_URI,
+            "NEO4J_PASSWORD": cls.NEO4J_PASSWORD,
+            "ANTHROPIC_API_KEY": cls.ANTHROPIC_API_KEY
+        }
+        
+        missing = [var for var, val in required.items() if not val]
+        
+        if missing:
+            raise ValueError(
+                f"Missing required environment variables: {', '.join(missing)}\n"
+                f"Set these in .env file or Render environment variables"
+            )
+        
+        # Warn if API_KEY not set (will use default)
+        if not cls.API_KEY:
+            logging.warning("API_KEY not set - using default (insecure!)")
+
+
+def get_logger(name: str):
+    """Configure logger (no sensitive data in logs)"""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
+    return logger
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -131,6 +182,16 @@ GRAPH_TRAVERSAL_DEPTH = 2   # Hops to traverse from seed nodes
 LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+# Claude Sonnet token pricing (USD per token)
+CLAUDE_INPUT_TOKEN_COST = 0.000003
+CLAUDE_OUTPUT_TOKEN_COST = 0.000015
+
+# ---------------------------------------------------------------------------
+# API
+# ---------------------------------------------------------------------------
+
+API_VERSION = "1.0.0"
 
 # ---------------------------------------------------------------------------
 # Logging

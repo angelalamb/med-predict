@@ -7,13 +7,70 @@ formatting and API machinery.
 """
 
 import time
-
 import anthropic
-
+import os
 from config import ANTHROPIC_API_KEY, LLM_MODEL, get_logger
 from generation.prompts import get_system_prompt, render_user_prompt
+from typing import Tuple, Dict
 
 logger = get_logger(__name__)
+
+"""RAG generator with token usage tracking"""
+
+class Generator:
+    """Generate answers using Claude API with usage tracking"""
+    
+    def __init__(self):
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set in environment")
+        
+        self.client = anthropic.Anthropic(api_key=api_key)
+        self.model = "claude-sonnet-4-20250514"
+    
+    def generate(self, query: str, context: list) -> str:
+        """Generate answer (original method for backward compatibility)"""
+        answer, _ = self.generate_with_usage(query, context)
+        return answer
+    
+    def generate_with_usage(self, query: str, context: list) -> Tuple[str, Dict[str, int]]:
+        """
+        Generate answer and return token usage for cost tracking.
+        
+        Returns:
+            Tuple of (answer: str, tokens: dict)
+            tokens = {"input": int, "output": int}
+        """
+        # Build prompt from your existing prompts.py
+        from generation.prompts import build_rag_prompt
+        
+        prompt = build_rag_prompt(query, context)
+        
+        try:
+            # Call Claude API
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=500,
+                messages=[{
+                    "role": "user",
+                    "content": prompt
+                }]
+            )
+            
+            # Extract answer
+            answer = response.content[0].text
+            
+            # Extract token usage
+            tokens = {
+                "input": response.usage.input_tokens,
+                "output": response.usage.output_tokens
+            }
+            
+            return answer, tokens
+            
+        except Exception as e:
+            logger.error(f"Claude API call failed: {e}")
+            raise
 
 # ---------------------------------------------------------------------------
 # Anthropic client singleton
