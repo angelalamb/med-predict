@@ -6,14 +6,19 @@ embedding index.
 Returns the top-K Device nodes most semantically similar to the query.
 """
 
-from sentence_transformers import SentenceTransformer
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 from config import EMBEDDING_MODEL_NAME, SEMANTIC_TOP_K, get_logger
 from graph.queries import vector_similarity_search
 
 logger = get_logger(__name__)
 
-# Module-level model singleton — loaded once, reused across queries.
+# Module-level model singleton — loaded once on first query, not at import time.
 _model: SentenceTransformer | None = None
 
 
@@ -34,6 +39,7 @@ def _get_model() -> SentenceTransformer:
 
     logger.info("Loading embedding model: %s", EMBEDDING_MODEL_NAME)
     try:
+        from sentence_transformers import SentenceTransformer
         _model = SentenceTransformer(EMBEDDING_MODEL_NAME)
         logger.info("Embedding model loaded successfully")
         return _model
