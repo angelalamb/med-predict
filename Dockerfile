@@ -24,8 +24,11 @@ RUN groupadd -r appuser && useradd -r -g appuser -m appuser
 WORKDIR /app
 
 # ---- Python dependencies ---------------------------------------------------
+# Install CPU-only torch first — prevents pip from pulling in multi-GB CUDA
+# packages (nvidia-cublas, triton, etc.) that are useless on a CPU-only server.
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -r requirements.txt
 
 # ---- Pre-download embedding model ------------------------------------------
