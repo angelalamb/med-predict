@@ -12,3 +12,4 @@ limiter = Limiter(key_func=get_remote_address)
 
 QUERY_RATE_LIMIT = "20/hour"
 STATS_RATE_LIMIT = "10/hour"
+HEALTH_RATE_LIMIT = "60/minute"

@@ -13,57 +13,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-class Config:
-    """Central configuration"""
-    
-    # Neo4j (from environment variables)
-    NEO4J_URI = os.getenv("NEO4J_URI")
-    NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-    NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
-    
-    # Anthropic API
-    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    
-    # API Key for your API
-    API_KEY = os.getenv("API_KEY")
-    
-    @classmethod
-    def validate(cls):
-        """Validate required environment variables"""
-        required = {
-            "NEO4J_URI": cls.NEO4J_URI,
-            "NEO4J_PASSWORD": cls.NEO4J_PASSWORD,
-            "ANTHROPIC_API_KEY": cls.ANTHROPIC_API_KEY
-        }
-        
-        missing = [var for var, val in required.items() if not val]
-        
-        if missing:
-            raise ValueError(
-                f"Missing required environment variables: {', '.join(missing)}\n"
-                f"Set these in .env file or Render environment variables"
-            )
-        
-        # Warn if API_KEY not set (will use default)
-        if not cls.API_KEY:
-            logging.warning("API_KEY not set - using default (insecure!)")
-
-
-def get_logger(name: str):
-    """Configure logger (no sensitive data in logs)"""
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    
-    return logger
-
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -76,7 +25,6 @@ PROCESSED_DIR = DATA_DIR / "processed"
 EMBEDDINGS_DIR = DATA_DIR / "embeddings"
 LOG_DIR = ROOT_DIR / "logs"
 
-# Ensure directories exist
 for _dir in [RAW_DIR, PDF_DIR, PROCESSED_DIR, EMBEDDINGS_DIR, LOG_DIR]:
     _dir.mkdir(parents=True, exist_ok=True)
 
@@ -84,18 +32,10 @@ for _dir in [RAW_DIR, PDF_DIR, PROCESSED_DIR, EMBEDDINGS_DIR, LOG_DIR]:
 # FDA Data Sources
 # ---------------------------------------------------------------------------
 
-FDA_510K_URL = (
-    "https://www.accessdata.fda.gov/premarket/ftparea/pmn96cur.zip"
-)
-FDA_PRODUCT_CODE_URL = (
-    "https://www.accessdata.fda.gov/premarket/ftparea/foiclass.zip"
-)
-FDA_PDF_BASE_URL = (
-    "https://www.accessdata.fda.gov/cdrh_docs/pdf"
-)
-FDA_PREDICATE_URL = (
-    "https://www.accessdata.fda.gov/premarket/ftparea/pmnrelat.zip"
-)
+FDA_510K_URL = "https://www.accessdata.fda.gov/premarket/ftparea/pmn96cur.zip"
+FDA_PRODUCT_CODE_URL = "https://www.accessdata.fda.gov/premarket/ftparea/foiclass.zip"
+FDA_PDF_BASE_URL = "https://www.accessdata.fda.gov/cdrh_docs/pdf"
+FDA_PREDICATE_URL = "https://www.accessdata.fda.gov/premarket/ftparea/pmnrelat.zip"
 
 PMN_RAW_PATH = RAW_DIR / "pmn_records.csv"
 PRODUCT_CODE_RAW_PATH = RAW_DIR / "product_codes.csv"
@@ -122,23 +62,16 @@ NEUROSTIMULATION_PRODUCT_CODES = [
     "PZI",  # Peripheral nerve stimulator
 ]
 
-# Only include cleared submissions
 CLEARED_DECISION_CODES = ["SESE", "SE"]
-
-# Only include submissions from this year onwards (avoids messy old PDFs)
 MIN_SUBMISSION_YEAR = 2005
 
 # ---------------------------------------------------------------------------
 # PDF Extraction
 # ---------------------------------------------------------------------------
 
-# Minimum characters for extracted text to be considered valid
 MIN_EXTRACTED_CHARS = 100
-
-# Seconds to wait between PDF download requests
 PDF_DOWNLOAD_DELAY = 1.5
 
-# Intended use section header variants to search for
 INTENDED_USE_HEADERS = [
     "Indications for Use",
     "Indications For Use",
@@ -172,8 +105,8 @@ NEO4J_BATCH_SIZE = 500  # nodes/edges per transaction
 # Retrieval
 # ---------------------------------------------------------------------------
 
-SEMANTIC_TOP_K = 5          # Number of candidates from vector search
-GRAPH_TRAVERSAL_DEPTH = 2   # Hops to traverse from seed nodes
+SEMANTIC_TOP_K = 5        # Number of candidates from vector search
+GRAPH_TRAVERSAL_DEPTH = 2  # Hops to traverse from seed nodes
 
 # ---------------------------------------------------------------------------
 # Generation
@@ -181,7 +114,6 @@ GRAPH_TRAVERSAL_DEPTH = 2   # Hops to traverse from seed nodes
 
 LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Claude Sonnet token pricing (USD per token)
 CLAUDE_INPUT_TOKEN_COST = 0.000003
@@ -205,9 +137,8 @@ LOG_BACKUP_COUNT = 5
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Return a logger configured with both a console handler and a
-    rotating file handler.  All modules call this function rather than
-    instantiating their own loggers.
+    Return a logger configured with a console handler and a rotating file
+    handler. All modules call this rather than instantiating their own loggers.
 
     Args:
         name: Typically __name__ of the calling module.
@@ -217,7 +148,6 @@ def get_logger(name: str) -> logging.Logger:
     """
     logger = logging.getLogger(name)
 
-    # Avoid adding duplicate handlers if get_logger is called multiple times
     if logger.handlers:
         return logger
 
@@ -228,12 +158,10 @@ def get_logger(name: str) -> logging.Logger:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    # Rotating file handler
     file_handler = logging.handlers.RotatingFileHandler(
         LOG_FILE,
         maxBytes=LOG_MAX_BYTES,
@@ -244,3 +172,25 @@ def get_logger(name: str) -> logging.Logger:
     logger.addHandler(file_handler)
 
     return logger
+
+
+def validate() -> None:
+    """
+    Validate that all required environment variables are set.
+
+    Raises:
+        ValueError: If any required variable is missing.
+    """
+    required = {
+        "NEO4J_URI": NEO4J_URI,
+        "NEO4J_PASSWORD": NEO4J_PASSWORD,
+        "ANTHROPIC_API_KEY": ANTHROPIC_API_KEY,
+    }
+
+    missing = [var for var, val in required.items() if not val]
+
+    if missing:
+        raise ValueError(
+            f"Missing required environment variables: {', '.join(missing)}\n"
+            "Set these in your .env file or deployment environment variables."
+        )

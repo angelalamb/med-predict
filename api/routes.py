@@ -18,7 +18,7 @@ from config import (
 )
 from generation.generator import Generator
 from graph.connection import get_driver
-from limiter import QUERY_RATE_LIMIT, STATS_RATE_LIMIT, limiter
+from limiter import HEALTH_RATE_LIMIT, QUERY_RATE_LIMIT, STATS_RATE_LIMIT, limiter
 from models import DeviceInfo, HealthResponse, QueryRequest, QueryResponse
 from retrieval.retriever import retrieve
 
@@ -39,7 +39,8 @@ async def root():
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check():
+@limiter.limit(HEALTH_RATE_LIMIT)
+async def health_check(request: Request):
     """Health check endpoint (no auth required)."""
     neo4j_status = "connected"
     try:

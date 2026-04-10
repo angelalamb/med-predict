@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
-from config import API_VERSION, get_logger
+from config import API_VERSION, get_logger, validate
 from limiter import limiter
 from routes import rate_limit_handler, router
 
@@ -33,8 +33,7 @@ async def lifespan(_app: FastAPI):
     logger.info("=" * 70)
     logger.info("MedPredict API starting up")
     logger.info("=" * 70)
-    from config import Config
-    Config.validate()
+    validate()
     logger.info("✓ Configuration validated")
     logger.info("✓ MedPredict API is ready!")
     logger.info("=" * 70)

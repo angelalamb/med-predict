@@ -1,109 +1,20 @@
 """
-Formats the retrieved subgraph into prompt context, calls the LLM API,
-and returns a structured analysis response.
+Calls the Claude API and returns a generated answer with token usage.
 
-The only public function is generate().  Everything else is private
-formatting and API machinery.
+Two public interfaces:
+  - Generator class   — used by the API (routes.py)
+  - generate()        — used by the Streamlit app (streamlit_app.py)
 """
 
-import time
-import anthropic
 import os
+import time
+
+import anthropic
+
 from config import ANTHROPIC_API_KEY, LLM_MODEL, get_logger
 from generation.prompts import get_system_prompt, render_user_prompt
-from typing import Tuple, Dict
 
 logger = get_logger(__name__)
-
-"""RAG generator with token usage tracking"""
-
-class Generator:
-    """Generate answers using Claude API with usage tracking"""
-    
-    def __init__(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not set in environment")
-        
-        self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = "claude-sonnet-4-20250514"
-    
-    def generate(self, query: str, context: list) -> str:
-        """Generate answer (original method for backward compatibility)"""
-        answer, _ = self.generate_with_usage(query, context)
-        return answer
-    
-    def generate_with_usage(self, query: str, context: list) -> Tuple[str, Dict[str, int]]:
-        """
-        Generate answer and return token usage for cost tracking.
-        
-        Returns:
-            Tuple of (answer: str, tokens: dict)
-            tokens = {"input": int, "output": int}
-        """
-        # Build prompt from your existing prompts.py
-        from generation.prompts import build_rag_prompt
-        
-        prompt = build_rag_prompt(query, context)
-        
-        try:
-            # Call Claude API
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=500,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
-            )
-            
-            # Extract answer
-            answer = response.content[0].text
-            
-            # Extract token usage
-            tokens = {
-                "input": response.usage.input_tokens,
-                "output": response.usage.output_tokens
-            }
-            
-            return answer, tokens
-            
-        except Exception as e:
-            logger.error(f"Claude API call failed: {e}")
-            raise
-
-# ---------------------------------------------------------------------------
-# Anthropic client singleton
-# ---------------------------------------------------------------------------
-
-_client: anthropic.Anthropic | None = None
-
-
-def _get_client() -> anthropic.Anthropic:
-    """
-    Return the shared Anthropic client, creating it on first call.
-
-    Returns:
-        anthropic.Anthropic client instance.
-
-    Raises:
-        RuntimeError: If the API key is not configured.
-    """
-    global _client
-
-    if _client is not None:
-        return _client
-
-    if not ANTHROPIC_API_KEY:
-        logger.error("ANTHROPIC_API_KEY is not set in environment")
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not configured. "
-            "Set it in your .env file."
-        )
-
-    _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    logger.info("Anthropic client initialised (model=%s)", LLM_MODEL)
-    return _client
 
 
 # ---------------------------------------------------------------------------
@@ -112,15 +23,6 @@ def _get_client() -> anthropic.Anthropic:
 
 
 def _format_single_device(node: dict) -> str:
-    """
-    Format one device node's properties into a readable text block.
-
-    Args:
-        node: Device property dict from the retrieval layer.
-
-    Returns:
-        Formatted string block for this device.
-    """
     k_number = node.get("k_number", "Unknown")
     device_name = node.get("device_name", "Unknown")
     applicant = node.get("applicant", "Unknown")
@@ -137,29 +39,14 @@ def _format_single_device(node: dict) -> str:
         f"- Applicant: {applicant}",
         f"- Product Code: {product_code}",
         f"- Decision Date: {decision_date}",
+        f"- Intended Use: {intended_use or 'Not available'}",
     ]
-
-    if intended_use:
-        lines.append(f"- Intended Use: {intended_use}")
-    else:
-        lines.append("- Intended Use: Not available")
-
     return "\n".join(lines)
 
 
 def _format_edge_summary(edges: list[dict]) -> str:
-    """
-    Format the predicate edges into a compact summary string.
-
-    Args:
-        edges: List of {from_k, to_k} dicts.
-
-    Returns:
-        Formatted string listing all predicate relationships.
-    """
     if not edges:
         return "No predicate relationships identified within the retrieved subgraph."
-
     lines = ["**Predicate relationships in retrieved subgraph:**"]
     for edge in edges:
         lines.append(f"- {edge['from_k']} was predicated on {edge['to_k']}")
@@ -167,18 +54,7 @@ def _format_edge_summary(edges: list[dict]) -> str:
 
 
 def _format_device_context(subgraph: dict) -> str:
-    """
-    Format the full subgraph into a structured context string for the prompt.
-
-    Seeds are listed first, then ancestors, then descendants, each in
-    their own section.
-
-    Args:
-        subgraph: Dict with 'nodes' and 'edges' keys from the retrieval layer.
-
-    Returns:
-        Formatted context string.
-    """
+    """Format a subgraph dict into a structured context string for the prompt."""
     nodes = subgraph.get("nodes", [])
     edges = subgraph.get("edges", [])
 
@@ -187,182 +63,97 @@ def _format_device_context(subgraph: dict) -> str:
     descendants = [n for n in nodes if not n.get("is_seed") and n.get("direction") == "descendant"]
 
     sections = []
-
     if seeds:
         sections.append("## Seed Devices (Semantic Matches)\n")
         sections.extend(_format_single_device(n) for n in seeds)
-
     if ancestors:
         sections.append("\n## Ancestor Devices (Upstream Predicates)\n")
         sections.extend(_format_single_device(n) for n in ancestors)
-
     if descendants:
         sections.append("\n## Descendant Devices (Downstream Citations)\n")
         sections.extend(_format_single_device(n) for n in descendants)
 
     sections.append(f"\n## Predicate Network\n\n{_format_edge_summary(edges)}")
-
     return "\n\n".join(sections)
 
 
 # ---------------------------------------------------------------------------
-# Token counting and logging
+# Anthropic client
 # ---------------------------------------------------------------------------
 
 
-def _log_prompt_stats(system: str, user: str) -> None:
-    """
-    Log approximate token counts for the prompt before sending.
-
-    Uses a rough character-based estimate (4 chars ≈ 1 token) rather
-    than a tokeniser, which is sufficient for monitoring purposes.
-
-    Args:
-        system: System prompt string.
-        user: User prompt string.
-    """
-    system_tokens = len(system) // 4
-    user_tokens = len(user) // 4
-    logger.info(
-        "Prompt stats — system: ~%d tokens, user: ~%d tokens, total: ~%d tokens",
-        system_tokens,
-        user_tokens,
-        system_tokens + user_tokens,
-    )
-
-
-def _log_response_stats(response: anthropic.types.Message, elapsed: float) -> None:
-    """
-    Log token usage and timing from the API response.
-
-    Args:
-        response: Anthropic Message response object.
-        elapsed: Time taken for the API call in seconds.
-    """
-    usage = response.usage
-    logger.info(
-        "Generation complete in %.2fs — "
-        "input_tokens=%d, output_tokens=%d, stop_reason=%s",
-        elapsed,
-        usage.input_tokens,
-        usage.output_tokens,
-        response.stop_reason,
-    )
-
-
-# ---------------------------------------------------------------------------
-# API call
-# ---------------------------------------------------------------------------
-
-
-def _call_llm(system: str, user: str) -> anthropic.types.Message:
-    """
-    Call the Anthropic messages API with the given prompts.
-
-    Args:
-        system: System prompt string.
-        user: User prompt string.
-
-    Returns:
-        Anthropic Message response object.
-
-    Raises:
-        RuntimeError: If the API call fails.
-    """
-    client = _get_client()
-
-    try:
-        response = client.messages.create(
-            model=LLM_MODEL,
-            max_tokens=2048,
-            system=system,
-            messages=[{"role": "user", "content": user}],
+def _get_client() -> anthropic.Anthropic:
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not configured. Set it in your .env file."
         )
-        return response
-
-    except anthropic.AuthenticationError as exc:
-        logger.error("Anthropic authentication failed: %s", exc)
-        raise RuntimeError("Anthropic API authentication failed") from exc
-
-    except anthropic.RateLimitError as exc:
-        logger.error("Anthropic rate limit exceeded: %s", exc)
-        raise RuntimeError("Anthropic API rate limit exceeded") from exc
-
-    except anthropic.APIError as exc:
-        logger.error("Anthropic API error: %s", exc)
-        raise RuntimeError(f"Anthropic API error: {exc}") from exc
+    return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 # ---------------------------------------------------------------------------
-# Response parsing
+# Generator class — used by the API
 # ---------------------------------------------------------------------------
 
 
-def _extract_text_from_response(response: anthropic.types.Message) -> str:
-    """
-    Extract the text content from an Anthropic Message response.
+class Generator:
+    """Generate answers using the Claude API with token usage tracking."""
 
-    Args:
-        response: Anthropic Message object.
+    def __init__(self):
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set in environment")
+        self.client = anthropic.Anthropic(api_key=api_key)
+        self.model = LLM_MODEL
 
-    Returns:
-        Text content string.
+    def generate(self, query: str, context: list) -> str:
+        """Generate an answer, discarding token usage."""
+        answer, _ = self.generate_with_usage(query, context)
+        return answer
 
-    Raises:
-        ValueError: If no text content block is found in the response.
-    """
-    for block in response.content:
-        if block.type == "text":
-            return block.text
+    def generate_with_usage(self, query: str, context: list) -> tuple[str, dict[str, int]]:
+        """
+        Generate an answer and return token usage for cost tracking.
 
-    logger.error("No text content block found in API response")
-    raise ValueError("LLM response contained no text content")
+        Args:
+            query: Natural language device description.
+            context: List of device node dicts from the retrieval layer.
 
+        Returns:
+            Tuple of (answer: str, tokens: dict) where tokens has
+            keys 'input' and 'output'.
+        """
+        subgraph = {"nodes": context, "edges": []}
+        device_context = _format_device_context(subgraph)
+        system = get_system_prompt()
+        user = render_user_prompt(query=query, device_context=device_context)
 
-def _build_result(
-    query: str,
-    analysis_text: str,
-    subgraph: dict,
-    model: str,
-    usage: anthropic.types.Usage,
-) -> dict:
-    """
-    Assemble the final result dict returned to the caller.
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=500,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+        except Exception as e:
+            logger.error("Claude API call failed: %s", e)
+            raise
 
-    Args:
-        query: Original query string.
-        analysis_text: Generated analysis text from the LLM.
-        subgraph: The retrieved subgraph passed into generation.
-        model: Model identifier used for generation.
-        usage: Token usage from the API response.
-
-    Returns:
-        Structured result dict.
-    """
-    return {
-        "query": query,
-        "analysis": analysis_text,
-        "subgraph": subgraph,
-        "metadata": {
-            "model": model,
-            "input_tokens": usage.input_tokens,
-            "output_tokens": usage.output_tokens,
-            "prompt_version": "v1",
-        },
-    }
+        answer = response.content[0].text
+        tokens = {
+            "input": response.usage.input_tokens,
+            "output": response.usage.output_tokens,
+        }
+        return answer, tokens
 
 
 # ---------------------------------------------------------------------------
-# Public interface
+# Module-level generate() — used by the Streamlit app
 # ---------------------------------------------------------------------------
 
 
 def generate(query: str, subgraph: dict, prompt_version: str = "v1") -> dict:
     """
     Generate a substantial equivalence analysis for a query device.
-
-    Formats the retrieved subgraph into prompt context, calls the LLM,
-    and returns a structured result dict.
 
     Args:
         query: Natural language description of the device under review.
@@ -373,7 +164,7 @@ def generate(query: str, subgraph: dict, prompt_version: str = "v1") -> dict:
     Returns:
         Dict with keys:
           'query'    — original query string
-          'analysis' — full LLM-generated analysis text (markdown)
+          'analysis' — LLM-generated analysis text (markdown)
           'subgraph' — the subgraph passed in (passed through for the UI)
           'metadata' — dict with model, token counts, prompt_version
 
@@ -384,9 +175,7 @@ def generate(query: str, subgraph: dict, prompt_version: str = "v1") -> dict:
     nodes = subgraph.get("nodes", [])
 
     if not nodes:
-        logger.warning(
-            "generate() called with empty subgraph for query: %r", query[:80]
-        )
+        logger.warning("generate() called with empty subgraph for query: %r", query[:80])
         raise ValueError(
             "Cannot generate analysis: subgraph contains no device nodes. "
             "Check that the retrieval step returned results."
@@ -400,32 +189,51 @@ def generate(query: str, subgraph: dict, prompt_version: str = "v1") -> dict:
         query[:80],
     )
 
+    client = _get_client()
     system = get_system_prompt(version=prompt_version)
     device_context = _format_device_context(subgraph)
-    user = render_user_prompt(
-        query=query,
-        device_context=device_context,
-        version=prompt_version,
+    user = render_user_prompt(query=query, device_context=device_context, version=prompt_version)
+
+    try:
+        start = time.time()
+        response = client.messages.create(
+            model=LLM_MODEL,
+            max_tokens=2048,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        elapsed = time.time() - start
+    except anthropic.AuthenticationError as exc:
+        logger.error("Anthropic authentication failed: %s", exc)
+        raise RuntimeError("Anthropic API authentication failed") from exc
+    except anthropic.RateLimitError as exc:
+        logger.error("Anthropic rate limit exceeded: %s", exc)
+        raise RuntimeError("Anthropic API rate limit exceeded") from exc
+    except anthropic.APIError as exc:
+        logger.error("Anthropic API error: %s", exc)
+        raise RuntimeError(f"Anthropic API error: {exc}") from exc
+
+    logger.info(
+        "Generation complete in %.2fs — input_tokens=%d, output_tokens=%d",
+        elapsed,
+        response.usage.input_tokens,
+        response.usage.output_tokens,
     )
 
-    _log_prompt_stats(system, user)
-
-    start = time.time()
-    response = _call_llm(system, user)
-    elapsed = time.time() - start
-
-    _log_response_stats(response, elapsed)
-
-    analysis_text = _extract_text_from_response(response)
-
-    result = _build_result(
-        query=query,
-        analysis_text=analysis_text,
-        subgraph=subgraph,
-        model=LLM_MODEL,
-        usage=response.usage,
+    analysis_text = next(
+        (block.text for block in response.content if block.type == "text"), None
     )
+    if analysis_text is None:
+        raise ValueError("LLM response contained no text content")
 
-    logger.info("Analysis generation complete")
-
-    return result
+    return {
+        "query": query,
+        "analysis": analysis_text,
+        "subgraph": subgraph,
+        "metadata": {
+            "model": LLM_MODEL,
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "prompt_version": prompt_version,
+        },
+    }
