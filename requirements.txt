@@ -14,16 +14,21 @@ neo4j>=5.0
 # Embeddings
 sentence-transformers>=2.7
 numpy>=1.26
-torch>=2.0          # Required by sentence-transformers
+torch>=2.0
 
-# LLM generation (choose one or both)
+# LLM generation
 anthropic>=0.25
-openai>=1.30
 
 # UI
 streamlit>=1.35
 streamlit-agraph>=0.0.45
 markdown>=3.6
+
+# API (NEW)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+slowapi>=0.1.9  # Rate limiting
 
 # Testing
 pytest>=8.0
