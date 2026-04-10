@@ -40,7 +40,7 @@ since clearance.
 
 ## Architecture
 
-The system has four layers.
+The system has five layers.
 
 The pipeline layer downloads FDA bulk data, filters to neurostimulation
 product codes, extracts intended use statements from 510(k) summary
@@ -62,10 +62,14 @@ The generation layer formats the retrieved subgraph into a structured
 prompt and calls the Anthropic API to produce a ranked substantial
 equivalence analysis grounded in the retrieved device data.
 
-The Streamlit application presents a three-column interface: a query
-form on the left, an interactive predicate network graph in the centre,
-and the generated analysis on the right. K-numbers in the analysis are
-linked directly to their FDA public records.
+The API layer exposes the retrieval and generation pipeline as a
+authenticated REST API built with FastAPI. Endpoints are rate-limited
+and require an API key.
+
+The Streamlit application connects directly to Neo4j and the Anthropic
+API and presents a two-panel interface: an interactive predicate network
+graph on the left and the generated analysis on the right. K-numbers in
+the analysis are linked directly to their FDA public records.
 
 ---
 
@@ -115,8 +119,19 @@ scanned PDFs that do not yield reliable text extraction.
     med-predict/
         config.py                   Central configuration and logging
         requirements.txt
-        docker-compose.yml
-        .env.example
+        Dockerfile
+        docker-compose.yml          Local dev: API + Streamlit + Neo4j
+        render.yaml                 Render deployment configuration
+
+        api/
+            main.py                 FastAPI app setup and entry point
+            routes.py               API endpoint handlers
+            models.py               Pydantic request/response schemas
+            auth.py                 API key authentication
+            limiter.py              Rate limiter configuration
+
+        app/
+            streamlit_app.py        Two-panel Streamlit interface
 
         pipeline/
             run_pipeline.py         Orchestrates all pipeline steps
@@ -141,9 +156,6 @@ scanned PDFs that do not yield reliable text extraction.
             prompts.py              Versioned prompt templates
             generator.py            LLM API calls and response formatting
 
-        app/
-            streamlit_app.py        Two-panel Streamlit interface
-
         data/
             raw/                    Downloaded FDA files and PDFs
             processed/              Filtered records and extracted text
@@ -156,9 +168,8 @@ scanned PDFs that do not yield reliable text extraction.
 
 ## Setup
 
-Prerequisites: Python 3.11 or higher. For the graph database, use
-either a Neo4j AuraDB free tier account or run Neo4j locally with
-Docker.
+Prerequisites: Python 3.11 or higher. A Neo4j AuraDB free tier account
+for the graph database, and an Anthropic API key for generation.
 
 Create a virtual environment and install dependencies.
 
@@ -166,39 +177,51 @@ Create a virtual environment and install dependencies.
     source venv/bin/activate
     pip install -r requirements.txt
 
-Copy the environment template and fill in your credentials.
+Create a .env file in the project root with the following values.
 
-    cp .env.example .env
-
-The .env file requires the following values.
-
-    NEO4J_URI         Connection URI from your AuraDB instance dashboard
+    NEO4J_URI         Connection URI from your AuraDB instance
+                      (e.g. neo4j+s://xxxxxxxx.databases.neo4j.io)
     NEO4J_USERNAME    Usually "neo4j"
     NEO4J_PASSWORD    Set when creating the AuraDB instance
     ANTHROPIC_API_KEY Your Anthropic API key
+    API_KEY           Secret key required by the API (X-API-Key header)
     LLM_MODEL         Defaults to claude-sonnet-4-20250514
+    LOG_LEVEL         Defaults to INFO
 
-### Running Neo4j locally with Docker
+Generate a strong API key with:
 
-As an alternative to AuraDB, the included docker-compose.yml starts a
-local Neo4j 5 instance with APOC plugins enabled.
+    python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
-    docker compose up -d
+---
 
-The database will be available on bolt://localhost:7687 and the browser
-UI at http://localhost:7474. Use these values in your .env.
+## Local Development with Docker
 
-    NEO4J_URI         bolt://localhost:7687
-    NEO4J_USERNAME    neo4j
-    NEO4J_PASSWORD    medpredict-local
+The included docker-compose.yml starts Neo4j, the API, and the
+Streamlit app together. Secrets are read from your .env file.
+
+    docker compose up --build
+
+Services:
+
+    API            http://localhost:8000  (docs at /docs)
+    Streamlit app  http://localhost:8501
+    Neo4j browser  http://localhost:7474
+
+To start only Neo4j and run the Python services natively:
+
+    docker compose up neo4j
+
+The Neo4j container uses bolt://localhost:7687. Set this as NEO4J_URI
+in your .env when running natively.
 
 ---
 
 ## Running the Pipeline
 
 The pipeline downloads data, processes it, and loads the graph. Run it
-once before starting the application. Each step is idempotent and safe
-to re-run if interrupted.
+once before starting the application, pointing your .env at the target
+Neo4j instance (local or AuraDB). Each step is idempotent and safe to
+re-run if interrupted.
 
     python -m pipeline.run_pipeline
 
@@ -223,23 +246,77 @@ this takes a few minutes for a corpus of a few thousand documents.
 
 ## Running the Application
 
+**Streamlit app**
+
     streamlit run app/streamlit_app.py
 
-The application opens in your browser at localhost:8501.
+Opens in your browser at http://localhost:8501.
 
-Enter a natural language description of the device you are seeking a
-predicate for. Adjust the semantic candidates slider to control how
-many initial matches semantic search returns, and the graph depth
-slider to control how many hops the predicate traversal walks.
+**API**
 
-The graph panel shows the predicate network for the retrieved devices.
-Blue nodes are semantic matches to your query. Green nodes are ancestor
-devices that the seeds were predicated on. Amber nodes are descendant
-devices that have cited the seeds as predicates.
+    python3 api/main.py
 
-The analysis panel shows the ranked substantial equivalence assessment
-generated by the LLM. K-numbers in the analysis are linked to their
-FDA public records.
+Runs on http://localhost:8000. Interactive docs at http://localhost:8000/docs.
+
+All API endpoints except /health require an X-API-Key header.
+
+    curl http://localhost:8000/health
+
+    curl -X POST http://localhost:8000/query \
+      -H "Content-Type: application/json" \
+      -H "X-API-Key: your-api-key" \
+      -d '{"query": "spinal cord stimulator for chronic pain", "k": 5}'
+
+---
+
+## Deployment
+
+The project deploys to Render using the included render.yaml, which
+defines two web services built from the same Dockerfile:
+
+    medpredict-api   FastAPI backend
+    medpredict-app   Streamlit frontend
+
+Both services connect to Neo4j AuraDB. Neither requires a local Neo4j
+instance in production.
+
+**Deploy steps:**
+
+1. Push the repo to GitHub
+2. Create a Render account and connect the GitHub repo
+3. Render detects render.yaml and creates both services automatically
+4. In the Render dashboard, set the following environment variables
+   for each service before deploying:
+
+   Both services:
+       NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, ANTHROPIC_API_KEY
+
+   API service only:
+       API_KEY
+
+5. Trigger a deploy
+
+The Dockerfile installs CPU-only PyTorch to keep the image within
+Render's free tier memory limits.
+
+**Free tier note:** Render free tier services sleep after 15 minutes of
+inactivity and take approximately 30 seconds to wake on the next
+request.
+
+---
+
+## API Reference
+
+    GET  /health        Service and dependency health check (no auth)
+    POST /query         Query devices by natural language description
+    GET  /stats         Usage statistics placeholder
+
+Authentication: include X-API-Key header with all requests except /health.
+
+Rate limits: /query is limited to 20 requests per hour per IP.
+/stats is limited to 10 requests per hour per IP.
+
+Full interactive documentation is available at /docs when the API is running.
 
 ---
 
@@ -255,6 +332,8 @@ settings are listed below.
     EMBEDDING_MODEL_NAME              Sentence transformer model
     NEO4J_BATCH_SIZE                  Records per Neo4j write transaction
     PDF_DOWNLOAD_DELAY                Seconds between PDF requests
+    CLAUDE_INPUT_TOKEN_COST           Per-token cost for input (USD)
+    CLAUDE_OUTPUT_TOKEN_COST          Per-token cost for output (USD)
 
 ---
 
@@ -280,6 +359,10 @@ and no cost per query.
 The same model must be used at both ingestion time (pipeline) and
 query time (retrieval). This is enforced by reading the model name
 from config.py in both layers.
+
+The model is loaded lazily on the first query, not at startup. In the
+Docker image it is pre-downloaded during the build so the first request
+does not incur a download delay.
 
 ---
 
@@ -313,11 +396,14 @@ layer require no changes.
 
 ## Technology Stack
 
-    Neo4j AuraDB          Graph database with native vector search
+    Neo4j AuraDB           Graph database with native vector search
     sentence-transformers  Local embedding model (BAAI/bge-base-en-v1.5)
     pdfplumber             PDF text extraction
     Anthropic API          LLM generation (Claude)
+    FastAPI                REST API framework
     Streamlit              Web application framework
     streamlit-agraph       Interactive graph visualisation
     pandas                 Data wrangling
     python-dotenv          Environment variable management
+    Render                 Cloud deployment
+    Docker                 Containerisation
