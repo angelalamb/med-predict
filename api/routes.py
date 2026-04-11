@@ -2,12 +2,15 @@
 API route handlers for the MedPredict API.
 """
 
+import random
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
+import config
 from auth import verify_api_key
 from config import (
     ANTHROPIC_API_KEY,
@@ -21,6 +24,7 @@ from graph.connection import get_driver
 from limiter import HEALTH_RATE_LIMIT, QUERY_RATE_LIMIT, STATS_RATE_LIMIT, limiter
 from models import DeviceInfo, HealthResponse, QueryRequest, QueryResponse
 from retrieval.retriever import retrieve
+from tracking import tracker
 
 logger = get_logger(__name__)
 
@@ -89,15 +93,20 @@ async def query_devices(
 
     try:
         logger.info("Retrieving similar devices...")
+        t_retrieval = time.perf_counter()
         subgraph = retrieve(query=query_request.query, top_k=query_request.k)
+        retrieval_latency_ms = (time.perf_counter() - t_retrieval) * 1000
+
         retrieved_devices = subgraph["nodes"]
         logger.info("Retrieved %d devices", len(retrieved_devices))
 
         logger.info("Generating answer with Claude...")
+        t_generation = time.perf_counter()
         answer, tokens = generator.generate_with_usage(
             query=query_request.query,
             context=retrieved_devices,
         )
+        generation_latency_ms = (time.perf_counter() - t_generation) * 1000
 
         cost = (tokens["input"] * CLAUDE_INPUT_TOKEN_COST) + (tokens["output"] * CLAUDE_OUTPUT_TOKEN_COST)
         logger.info(
@@ -117,6 +126,39 @@ async def query_devices(
             )
             for device in retrieved_devices
         ]
+
+        if random.random() < config.MLFLOW_SAMPLE_RATE:
+            seeds = [d for d in retrieved_devices if d.get("is_seed")]
+            ancestors = [d for d in retrieved_devices if not d.get("is_seed") and d.get("direction") == "ancestor"]
+            descendants = [d for d in retrieved_devices if not d.get("is_seed") and d.get("direction") == "descendant"]
+            similarity_scores = [d["similarity_score"] for d in retrieved_devices if d.get("similarity_score") is not None]
+
+            tracker.log_query_async(
+                metrics={
+                    "retrieval_count": float(len(retrieved_devices)),
+                    "seed_count": float(len(seeds)),
+                    "ancestor_count": float(len(ancestors)),
+                    "descendant_count": float(len(descendants)),
+                    "top_similarity_score": float(max(similarity_scores)) if similarity_scores else 0.0,
+                    "avg_similarity_score": float(sum(similarity_scores) / len(similarity_scores)) if similarity_scores else 0.0,
+                    "retrieval_latency_ms": retrieval_latency_ms,
+                    "generation_latency_ms": generation_latency_ms,
+                    "input_tokens": float(tokens["input"]),
+                    "output_tokens": float(tokens["output"]),
+                    "cost_usd": cost,
+                },
+                judge_input={
+                    "query": query_request.query,
+                    "retrieved_devices": retrieved_devices,
+                    "analysis": answer,
+                },
+                tags={
+                    "llm_model": config.LLM_MODEL,
+                    "prompt_version": config.PROMPT_VERSION,
+                    "k": str(query_request.k),
+                    "source": "api",
+                },
+            )
 
         return QueryResponse(
             query=query_request.query,

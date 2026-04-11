@@ -12,6 +12,9 @@ Run this script to build the full dataset from scratch.
 Each step is idempotent — safe to re-run if interrupted.
 """
 
+import time
+from datetime import datetime, timezone
+
 from config import get_logger
 from pipeline.download_data import download_pdfs, download_pmn_records, download_predicate_relations, download_product_codes
 from pipeline.embed import generate_embeddings
@@ -20,6 +23,7 @@ from pipeline.extract_text import extract_text
 from pipeline.filter_devices import filter_devices
 from pipeline.load_graph import load_graph
 from pipeline.parse_intended_use import parse_intended_use
+from tracking import tracker
 
 logger = get_logger(__name__)
 
@@ -33,54 +37,74 @@ def run_pipeline() -> None:
     """
     logger.info("=== MedPredict Pipeline Starting ===")
 
-    # Step 1: Download flat files
-    logger.info("--- Step 1: Download FDA flat files ---")
-    pmn_ok = download_pmn_records()
-    pc_ok = download_product_codes()
-    if not pmn_ok or not pc_ok:
-        logger.error("Flat file download failed — aborting pipeline")
-        return
+    run_name = "pipeline_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    t_start = time.perf_counter()
 
-    relat_ok = download_predicate_relations()
-    if not relat_ok:
-        logger.warning(
-            "Predicate relations file unavailable — graph will have nodes "
-            "but no predicate edges. Edges will be extracted from PDFs later."
+    with tracker.pipeline_run(run_name=run_name) as run:
+        # Step 1: Download flat files
+        logger.info("--- Step 1: Download FDA flat files ---")
+        pmn_ok = download_pmn_records()
+        pc_ok = download_product_codes()
+        if not pmn_ok or not pc_ok:
+            logger.error("Flat file download failed — aborting pipeline")
+            return
+
+        relat_ok = download_predicate_relations()
+        if not relat_ok:
+            logger.warning(
+                "Predicate relations file unavailable — graph will have nodes "
+                "but no predicate edges. Edges will be extracted from PDFs later."
+            )
+
+        # Step 2: Filter to neurostimulation devices
+        logger.info("--- Step 2: Filter devices ---")
+        devices_df = filter_devices()
+        k_numbers = devices_df["KNUMBER"].tolist()
+        logger.info("Working with %d neurostimulation K-numbers", len(k_numbers))
+
+        # Step 3: Download PDFs
+        logger.info("--- Step 3: Download PDFs ---")
+        download_pdfs(k_numbers)
+
+        # Step 4: Extract text
+        logger.info("--- Step 4: Extract text from PDFs ---")
+        extracted = extract_text(k_numbers)
+        logger.info("Text extracted for %d documents", len(extracted))
+
+        # Step 5: Parse intended use
+        logger.info("--- Step 5: Parse intended use statements ---")
+        intended_use_df = parse_intended_use(extracted)
+        logger.info(
+            "Intended use parsed for %d documents", len(intended_use_df)
         )
 
-    # Step 2: Filter to neurostimulation devices
-    logger.info("--- Step 2: Filter devices ---")
-    devices_df = filter_devices()
-    k_numbers = devices_df["KNUMBER"].tolist()
-    logger.info("Working with %d neurostimulation K-numbers", len(k_numbers))
+        # Step 6: Generate embeddings
+        logger.info("--- Step 6: Generate embeddings ---")
+        generate_embeddings()
 
-    # Step 3: Download PDFs
-    logger.info("--- Step 3: Download PDFs ---")
-    download_pdfs(k_numbers)
+        # Step 7: Extract predicate edges from PDF text
+        logger.info("--- Step 7: Extract predicate edges ---")
+        extract_predicate_edges()
 
-    # Step 4: Extract text
-    logger.info("--- Step 4: Extract text from PDFs ---")
-    extracted = extract_text(k_numbers)
-    logger.info("Text extracted for %d documents", len(extracted))
+        # Step 8: Load into Neo4j
+        logger.info("--- Step 8: Load graph into Neo4j ---")
+        load_graph()
 
-    # Step 5: Parse intended use
-    logger.info("--- Step 5: Parse intended use statements ---")
-    intended_use_df = parse_intended_use(extracted)
-    logger.info(
-        "Intended use parsed for %d documents", len(intended_use_df)
-    )
+        extracted_count = len(extracted)
+        intended_use_count = len(intended_use_df)
+        k_numbers_count = len(k_numbers)
 
-    # Step 6: Generate embeddings
-    logger.info("--- Step 6: Generate embeddings ---")
-    generate_embeddings()
-
-    # Step 7: Extract predicate edges from PDF text
-    logger.info("--- Step 7: Extract predicate edges ---")
-    extract_predicate_edges()
-
-    # Step 8: Load into Neo4j
-    logger.info("--- Step 8: Load graph into Neo4j ---")
-    load_graph()
+        tracker.log_pipeline_metrics(
+            run,
+            {
+                "k_numbers_count": float(k_numbers_count),
+                "extracted_count": float(extracted_count),
+                "intended_use_count": float(intended_use_count),
+                "text_extraction_rate": extracted_count / k_numbers_count if k_numbers_count else 0.0,
+                "intended_use_rate": intended_use_count / extracted_count if extracted_count else 0.0,
+                "total_duration_s": time.perf_counter() - t_start,
+            },
+        )
 
     logger.info("=== MedPredict Pipeline Complete ===")
 

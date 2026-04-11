@@ -126,6 +126,29 @@ CLAUDE_OUTPUT_TOKEN_COST = 0.000015
 API_VERSION = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# MLflow / Databricks Tracking
+# ---------------------------------------------------------------------------
+
+DATABRICKS_HOST = os.getenv("DATABRICKS_HOST", "")
+DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN", "")  # never logged
+MLFLOW_SAMPLE_RATE = float(os.getenv("MLFLOW_SAMPLE_RATE", "0.1"))
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", LLM_MODEL)
+PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1")
+
+MLFLOW_EXPERIMENT_PIPELINE = "/medpredict/pipeline_runs"
+MLFLOW_EXPERIMENT_QUERY = "/medpredict/query_metrics"
+MLFLOW_EXPERIMENT_EVAL = "/medpredict/llm_judge_eval"
+
+# LLM judge prompt constraints
+JUDGE_MAX_DEVICES = 20          # max devices included in judge prompt
+JUDGE_MAX_ANALYSIS_CHARS = 3000  # cap analysis length sent to judge
+JUDGE_MAX_TOKENS = 512          # max tokens for judge response (reasoning + JSON)
+
+# Weekly evaluation
+JUDGE_SCORE_PASS_THRESHOLD = 3.5  # weekly avg below this triggers a warning
+JUDGE_LOOKBACK_DAYS = 7
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 
