@@ -48,18 +48,13 @@ EMBEDDINGS_CACHE_PATH = EMBEDDINGS_DIR / "embeddings_cache.pkl"
 PREDICATE_EDGES_PATH = PROCESSED_DIR / "predicate_edges.csv"
 
 # ---------------------------------------------------------------------------
-# Neurostimulation Product Codes
+# Ultrasound Product Codes
 # ---------------------------------------------------------------------------
 
-NEUROSTIMULATION_PRODUCT_CODES = [
-    "GZP",  # Implantable spinal cord stimulator
-    "LLD",  # Deep brain stimulator
-    "NPN",  # Neurostimulator, implantable
-    "QFN",  # Implantable pulse generator for pain
-    "MRX",  # Transcutaneous electrical nerve stimulator
-    "IYO",  # Vagus nerve stimulator
-    "OZO",  # Sacral nerve stimulator
-    "PZI",  # Peripheral nerve stimulator
+ULTRASOUND_PRODUCT_CODES = [
+    "IYO",  # System, Imaging, Pulsed Echo, Ultrasonic
+    "IYN",  # System, Imaging, Pulsed Doppler, Ultrasonic
+    "ITX",  # Transducer, Ultrasonic, Diagnostic
 ]
 
 CLEARED_DECISION_CODES = ["SESE", "SE"]

@@ -1,7 +1,7 @@
 """
 Orchestrates the full data pipeline in sequence:
   1. Download FDA flat files
-  2. Filter to neurostimulation devices
+  2. Filter to ultrasound devices
   3. Download PDFs
   4. Extract text from PDFs
   5. Parse intended use statements
@@ -56,11 +56,11 @@ def run_pipeline() -> None:
                 "but no predicate edges. Edges will be extracted from PDFs later."
             )
 
-        # Step 2: Filter to neurostimulation devices
+        # Step 2: Filter to ultrasound devices
         logger.info("--- Step 2: Filter devices ---")
         devices_df = filter_devices()
         k_numbers = devices_df["KNUMBER"].tolist()
-        logger.info("Working with %d neurostimulation K-numbers", len(k_numbers))
+        logger.info("Working with %d ultrasound K-numbers", len(k_numbers))
 
         # Step 3: Download PDFs
         logger.info("--- Step 3: Download PDFs ---")

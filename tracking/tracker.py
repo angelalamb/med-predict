@@ -106,7 +106,7 @@ def log_pipeline_metrics(run, metrics: dict) -> None:
         mlflow.log_metrics(metrics)
         mlflow.log_params(
             {
-                "product_codes": ",".join(config.NEUROSTIMULATION_PRODUCT_CODES),
+                "product_codes": ",".join(config.ULTRASOUND_PRODUCT_CODES),
                 "min_year": str(config.MIN_SUBMISSION_YEAR),
                 "prompt_version": config.PROMPT_VERSION,
             }

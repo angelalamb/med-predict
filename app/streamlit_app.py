@@ -1,7 +1,7 @@
 """
 app/streamlit_app.py
 
-MedPredict — 510(k) Predicate Intelligence for Neurostimulation Devices.
+MedPredict — 510(k) Predicate Intelligence for Diagnostic Ultrasound Devices.
 
 Two-panel interface:
   Left  — interactive predicate network graph visualisation
@@ -457,7 +457,7 @@ def _render_header() -> None:
     st.markdown(
         """
         <p class="wordmark">Med<span>Predict</span></p>
-        <p class="tagline">510(k) Predicate Intelligence · Neurostimulation</p>
+        <p class="tagline">510(k) Predicate Intelligence · Diagnostic Ultrasound</p>
         <hr class="rule">
         """,
         unsafe_allow_html=True,
@@ -474,8 +474,8 @@ def _render_query_form() -> tuple[str, int, int, bool]:
     query = st.text_area(
         "Device Description",
         placeholder=(
-            "e.g. Implantable pulse generator for the treatment of chronic "
-            "intractable pain of the trunk and limbs via spinal cord stimulation…"
+            "e.g. Portable diagnostic ultrasound system for abdominal and "
+            "obstetric imaging using pulsed echo technology…"
         ),
         height=110,
         key="query_input",

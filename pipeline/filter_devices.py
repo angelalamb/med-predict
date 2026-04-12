@@ -1,6 +1,6 @@
 """
 Loads the raw FDA 510(k) PMN flat file and filters it down to:
-  - Neurostimulation product codes defined in config
+  - Ultrasound product codes defined in config
   - Cleared decisions only
   - Submissions on or after MIN_SUBMISSION_YEAR
 
@@ -13,7 +13,7 @@ from config import (
     CLEARED_DECISION_CODES,
     DEVICES_FILTERED_PATH,
     MIN_SUBMISSION_YEAR,
-    NEUROSTIMULATION_PRODUCT_CODES,
+    ULTRASOUND_PRODUCT_CODES,
     PMN_RAW_PATH,
     PMN_RELAT_PATH,
     get_logger,
@@ -197,7 +197,7 @@ def _join_predicate_relations(
 
 def _filter_by_product_code(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Keep only rows whose PRODUCTCODE is in the neurostimulation target set.
+    Keep only rows whose PRODUCTCODE is in the ultrasound target set.
 
     Args:
         df: Raw PMN DataFrame.
@@ -206,7 +206,7 @@ def _filter_by_product_code(df: pd.DataFrame) -> pd.DataFrame:
         Filtered DataFrame.
     """
     before = len(df)
-    mask = df[COL_PRODUCTCODE].str.strip().isin(NEUROSTIMULATION_PRODUCT_CODES)
+    mask = df[COL_PRODUCTCODE].str.strip().isin(ULTRASOUND_PRODUCT_CODES)
     filtered = df[mask].copy()
     after = len(filtered)
 
@@ -214,7 +214,7 @@ def _filter_by_product_code(df: pd.DataFrame) -> pd.DataFrame:
         "Product code filter: %d → %d records (kept codes: %s)",
         before,
         after,
-        NEUROSTIMULATION_PRODUCT_CODES,
+        ULTRASOUND_PRODUCT_CODES,
     )
 
     code_counts = (

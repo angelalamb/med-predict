@@ -1,6 +1,6 @@
 # MedPredict
 
-510(k) Predicate Intelligence for Neurostimulation Devices
+510(k) Predicate Intelligence for Diagnostic Ultrasound Devices
 
 MedPredict is a knowledge graph-augmented retrieval system that helps
 regulatory affairs teams identify candidate predicate devices for FDA
@@ -9,7 +9,7 @@ over intended use statements with graph traversal of the predicate
 network, and generates structured substantial equivalence analyses
 grounded in real cleared submission data.
 
-The system is scoped to neurostimulation devices and uses publicly
+The system is scoped to diagnostic ultrasound devices and uses publicly
 available FDA 510(k) data as its knowledge base.
 
 ---
@@ -42,10 +42,10 @@ since clearance.
 
 The system has five layers.
 
-The pipeline layer downloads FDA bulk data, filters to neurostimulation
-product codes, extracts intended use statements from 510(k) summary
-PDFs, generates sentence embeddings, and loads everything into a Neo4j
-graph database.
+The pipeline layer downloads FDA bulk data, filters to diagnostic
+ultrasound product codes, extracts intended use statements from 510(k)
+summary PDFs, generates sentence embeddings, and loads everything into
+a Neo4j graph database.
 
 The graph layer manages the Neo4j connection, schema, and all Cypher
 queries. Device nodes store structured attributes and embedding vectors.
@@ -94,23 +94,20 @@ The pipeline downloads and processes these sources automatically.
 
 ---
 
-## Neurostimulation Scope
+## Ultrasound Scope
 
 The system filters to the following FDA product codes by default.
 These can be extended in config.py.
 
-    GZP    Implantable spinal cord stimulator
-    LLD    Deep brain stimulator
-    NPN    Neurostimulator, implantable
-    QFN    Implantable pulse generator for pain
-    MRX    Transcutaneous electrical nerve stimulator
-    IYO    Vagus nerve stimulator
-    OZO    Sacral nerve stimulator
-    PZI    Peripheral nerve stimulator
+    IYO    System, Imaging, Pulsed Echo, Ultrasonic
+    IYN    System, Imaging, Pulsed Doppler, Ultrasonic
+    ITX    Transducer, Ultrasonic, Diagnostic
 
 Only cleared submissions (SESE or SE decision codes) from 2005 onwards
 are included. This keeps the dataset manageable and avoids the older
 scanned PDFs that do not yield reliable text extraction.
+
+The current dataset contains 1,334 cleared submissions.
 
 ---
 
@@ -136,7 +133,7 @@ scanned PDFs that do not yield reliable text extraction.
         pipeline/
             run_pipeline.py         Orchestrates all pipeline steps
             download_data.py        Downloads FDA flat files and PDFs
-            filter_devices.py       Filters to neurostimulation records
+            filter_devices.py       Filters to ultrasound records
             extract_text.py         PDF text extraction via pdfplumber
             parse_intended_use.py   Parses intended use statements
             extract_predicates.py   Extracts predicate edges from FDA data
@@ -228,7 +225,7 @@ re-run if interrupted.
 Pipeline steps in order:
 
     1. Download the FDA 510(k) flat file and product classification file
-    2. Filter records to neurostimulation product codes
+    2. Filter records to ultrasound product codes
     3. Download 510(k) summary PDFs for filtered devices
     4. Extract text from PDFs using pdfplumber
     5. Parse intended use statements from extracted text
@@ -236,7 +233,7 @@ Pipeline steps in order:
     7. Load device nodes, predicate edges, and embeddings into Neo4j
 
 PDF download takes the longest due to rate limiting between requests.
-Expect several hours for a full neurostimulation corpus. The download
+Expect several hours for a full ultrasound corpus. The download
 is resumable — already-downloaded files are skipped on re-run.
 
 Embedding generation runs locally on CPU. On an M4 Mac with 24GB RAM
@@ -265,7 +262,7 @@ All API endpoints except /health require an X-API-Key header.
     curl -X POST http://localhost:8000/query \
       -H "Content-Type: application/json" \
       -H "X-API-Key: your-api-key" \
-      -d '{"query": "spinal cord stimulator for chronic pain", "k": 5}'
+      -d '{"query": "portable diagnostic ultrasound system for abdominal imaging", "k": 5}'
 
 ---
 
@@ -325,7 +322,7 @@ Full interactive documentation is available at /docs when the API is running.
 All configurable values are in config.py. The most commonly adjusted
 settings are listed below.
 
-    NEUROSTIMULATION_PRODUCT_CODES    List of FDA product codes to include
+    ULTRASOUND_PRODUCT_CODES          List of FDA product codes to include
     MIN_SUBMISSION_YEAR               Earliest submission year to include
     SEMANTIC_TOP_K                    Default number of semantic candidates
     GRAPH_TRAVERSAL_DEPTH             Default traversal depth
@@ -388,9 +385,9 @@ professional before use in a submission.
 ## Extending to Other Device Categories
 
 To extend the system to other FDA device categories, add the relevant
-product codes to NEUROSTIMULATION_PRODUCT_CODES in config.py and
-re-run the pipeline. The graph schema, retrieval logic, and generation
-layer require no changes.
+product codes to ULTRASOUND_PRODUCT_CODES in config.py and re-run the
+pipeline. The graph schema, retrieval logic, and generation layer
+require no changes.
 
 ---
 
