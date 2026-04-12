@@ -107,8 +107,6 @@ Only cleared submissions (SESE or SE decision codes) from 2005 onwards
 are included. This keeps the dataset manageable and avoids the older
 scanned PDFs that do not yield reliable text extraction.
 
-The current dataset contains 1,334 cleared submissions.
-
 ---
 
 ## Project Structure
