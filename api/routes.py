@@ -19,7 +19,7 @@ from config import (
     CLAUDE_OUTPUT_TOKEN_COST,
     get_logger,
 )
-from generation.generator import Generator
+from generation.generator import Generator, IrrelevantQueryError
 from graph.connection import get_driver
 from limiter import HEALTH_RATE_LIMIT, QUERY_RATE_LIMIT, STATS_RATE_LIMIT, limiter
 from models import DeviceInfo, HealthResponse, QueryRequest, QueryResponse
@@ -102,10 +102,22 @@ async def query_devices(
 
         logger.info("Generating answer with Claude...")
         t_generation = time.perf_counter()
-        answer, tokens = generator.generate_with_usage(
-            query=query_request.query,
-            context=retrieved_devices,
-        )
+        try:
+            answer, tokens = generator.generate_with_usage(
+                query=query_request.query,
+                context=retrieved_devices,
+            )
+        except IrrelevantQueryError:
+            logger.info("Query flagged as not relevant to medical devices")
+            return QueryResponse(
+                query=query_request.query,
+                answer="This query does not appear to be about a medical device or FDA 510(k) submission. Please describe a medical device to find predicate candidates.",
+                sources=[],
+                graph_data={"nodes": [], "edges": []},
+                metadata={"model": config.LLM_MODEL, "input_tokens": 0, "output_tokens": 0, "prompt_version": config.PROMPT_VERSION},
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                tokens_used={"input": 0, "output": 0},
+            )
         generation_latency_ms = (time.perf_counter() - t_generation) * 1000
 
         cost = (tokens["input"] * CLAUDE_INPUT_TOKEN_COST) + (tokens["output"] * CLAUDE_OUTPUT_TOKEN_COST)

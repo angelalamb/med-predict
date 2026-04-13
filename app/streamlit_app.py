@@ -90,10 +90,15 @@ def _run_analysis(query: str, top_k: int, depth: int, categories: list[str] | No
             logger.error("API returned %d: %s", response.status_code, response.text)
             return
 
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception:
+            st.session_state.error = "An unexpected error occurred. Check logs for details."
+            logger.error("API returned 200 but response body is not valid JSON: %s", response.text[:200])
+            return
 
         if not data.get("graph_data", {}).get("nodes"):
-            st.session_state.error = (
+            st.session_state.error = data.get("answer") or (
                 "No matching devices found. Try broadening your device "
                 "description or reducing specificity."
             )

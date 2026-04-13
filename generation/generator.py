@@ -12,9 +12,13 @@ import time
 import anthropic
 
 from config import ANTHROPIC_API_KEY, LLM_MODEL, get_logger
-from generation.prompts import get_system_prompt, render_user_prompt
+from generation.prompts import IRRELEVANT_QUERY_SENTINEL, get_system_prompt, render_user_prompt
 
 logger = get_logger(__name__)
+
+
+class IrrelevantQueryError(Exception):
+    """Raised when the LLM determines the query is not about a medical device."""
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +142,9 @@ class Generator:
             logger.error("Claude API call failed: %s", e)
             raise
 
-        answer = response.content[0].text
+        answer = response.content[0].text.strip()
+        if answer == IRRELEVANT_QUERY_SENTINEL:
+            raise IrrelevantQueryError()
         tokens = {
             "input": response.usage.input_tokens,
             "output": response.usage.output_tokens,
