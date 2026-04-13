@@ -24,6 +24,7 @@ def _is_configured() -> bool:
     global _configured
     if _configured is None:
         _configured = bool(config.DATABRICKS_HOST and config.DATABRICKS_TOKEN)
+        logger.debug("MLflow configured: %s", _configured)
         if not _configured:
             logger.debug(
                 "MLflow tracking disabled: DATABRICKS_HOST or DATABRICKS_TOKEN not set"
