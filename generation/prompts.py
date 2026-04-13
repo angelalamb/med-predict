@@ -83,8 +83,10 @@ chain, or whether any candidates appear isolated.
 
 ### Recommended Next Steps
 
-List 2–3 concrete actions a regulatory affairs team should take to validate \
-the top candidate(s) before submitting.
+List only the concrete actions a regulatory affairs team should take to \
+validate the top candidate(s) before submitting. Include only steps that are \
+genuinely relevant to the specific results above — do not pad with generic \
+advice if fewer than three meaningful steps exist.
 """
 
 
