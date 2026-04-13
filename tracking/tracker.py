@@ -148,7 +148,7 @@ def log_query_async(
     thread = threading.Thread(
         target=_log_query,
         args=(metrics, judge_input, tags),
-        daemon=True,
+        daemon=False,
     )
     thread.start()
 
