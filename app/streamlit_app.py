@@ -79,7 +79,10 @@ def _run_analysis(query: str, top_k: int, depth: int) -> None:
             return
 
         if response.status_code != 200:
-            detail = response.json().get("detail", "An unexpected error occurred. Check logs for details.")
+            try:
+                detail = response.json().get("detail", "An unexpected error occurred. Check logs for details.")
+            except Exception:
+                detail = "An unexpected error occurred. Check logs for details."
             st.session_state.error = detail
             logger.error("API returned %d: %s", response.status_code, response.text)
             return
