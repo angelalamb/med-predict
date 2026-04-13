@@ -130,9 +130,9 @@ MLFLOW_SAMPLE_RATE = float(os.getenv("MLFLOW_SAMPLE_RATE", "0.1"))
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", LLM_MODEL)
 PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1")
 
-MLFLOW_EXPERIMENT_PIPELINE = "/medpredict/pipeline_runs"
-MLFLOW_EXPERIMENT_QUERY = "/medpredict/query_metrics"
-MLFLOW_EXPERIMENT_EVAL = "/medpredict/llm_judge_eval"
+MLFLOW_EXPERIMENT_PIPELINE = os.getenv("MLFLOW_EXPERIMENT_PIPELINE", "/Shared/medpredict-pipeline-runs")
+MLFLOW_EXPERIMENT_QUERY = os.getenv("MLFLOW_EXPERIMENT_QUERY", "/Shared/medpredict-query-metrics")
+MLFLOW_EXPERIMENT_EVAL = os.getenv("MLFLOW_EXPERIMENT_EVAL", "/Shared/medpredict-llm-judge-eval")
 
 # LLM judge prompt constraints
 JUDGE_MAX_DEVICES = 20          # max devices included in judge prompt
