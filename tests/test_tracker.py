@@ -73,7 +73,7 @@ def test_log_pipeline_metrics_noop_when_unconfigured(monkeypatch):
     monkeypatch.setattr(config, "DATABRICKS_TOKEN", "")
     fake_run = MagicMock()
     with patch("tracking.tracker._get_mlflow") as mock_get_mlflow:
-        log_pipeline_metrics(fake_run, {"k_numbers_count": 100.0})
+        log_pipeline_metrics(fake_run, {"k_numbers_count": 100.0}, category="ultrasound")
         mock_get_mlflow.assert_not_called()
 
 

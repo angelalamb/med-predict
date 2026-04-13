@@ -1,21 +1,31 @@
 """
 Orchestrates the full data pipeline in sequence:
   1. Download FDA flat files
-  2. Filter to ultrasound devices
+  2. Filter to devices for the specified category
   3. Download PDFs
   4. Extract text from PDFs
   5. Parse intended use statements
   6. Generate embeddings
-  7. Load graph into Neo4j
+  7. Extract predicate edges
+  8. Load graph into Neo4j
 
-Run this script to build the full dataset from scratch.
+Run for a single category:
+    python -m pipeline.run_pipeline --category ultrasound
+
+Run all categories in sequence:
+    python -m pipeline.run_pipeline --all
+
 Each step is idempotent — safe to re-run if interrupted.
+The graph is additive: running multiple categories populates Neo4j
+without overwriting existing nodes.
 """
 
+import argparse
 import time
 from datetime import datetime, timezone
 
-from config import get_logger
+import config
+from config import DEVICE_CATEGORIES, get_logger
 from pipeline.download_data import download_pdfs, download_pmn_records, download_predicate_relations, download_product_codes
 from pipeline.embed import generate_embeddings
 from pipeline.extract_predicates import extract_predicate_edges
@@ -28,16 +38,26 @@ from tracking import tracker
 logger = get_logger(__name__)
 
 
-def run_pipeline() -> None:
+def run_pipeline(category: str) -> None:
     """
-    Execute all pipeline steps in order.
+    Execute all pipeline steps for a single device category.
 
-    Each step logs its own progress. If a step fails it will raise,
-    halting the pipeline with a clear error in the logs.
+    Args:
+        category: Key from DEVICE_CATEGORIES (e.g. "ultrasound").
+
+    Raises:
+        ValueError: If category is not defined in DEVICE_CATEGORIES.
     """
-    logger.info("=== MedPredict Pipeline Starting ===")
+    if category not in DEVICE_CATEGORIES:
+        raise ValueError(
+            f"Unknown category '{category}'. "
+            f"Valid categories: {list(DEVICE_CATEGORIES.keys())}"
+        )
 
-    run_name = "pipeline_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    cat = DEVICE_CATEGORIES[category]
+    logger.info("=== MedPredict Pipeline Starting — category: %s (%s) ===", category, cat["label"])
+
+    run_name = f"pipeline_{category}_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     t_start = time.perf_counter()
 
     with tracker.pipeline_run(run_name=run_name) as run:
@@ -56,11 +76,11 @@ def run_pipeline() -> None:
                 "but no predicate edges. Edges will be extracted from PDFs later."
             )
 
-        # Step 2: Filter to ultrasound devices
-        logger.info("--- Step 2: Filter devices ---")
-        devices_df = filter_devices()
+        # Step 2: Filter devices for this category
+        logger.info("--- Step 2: Filter devices (category: %s) ---", category)
+        devices_df = filter_devices(category)
         k_numbers = devices_df["KNUMBER"].tolist()
-        logger.info("Working with %d ultrasound K-numbers", len(k_numbers))
+        logger.info("Working with %d K-numbers for category '%s'", len(k_numbers), category)
 
         # Step 3: Download PDFs
         logger.info("--- Step 3: Download PDFs ---")
@@ -74,21 +94,19 @@ def run_pipeline() -> None:
         # Step 5: Parse intended use
         logger.info("--- Step 5: Parse intended use statements ---")
         intended_use_df = parse_intended_use(extracted)
-        logger.info(
-            "Intended use parsed for %d documents", len(intended_use_df)
-        )
+        logger.info("Intended use parsed for %d documents", len(intended_use_df))
 
         # Step 6: Generate embeddings
         logger.info("--- Step 6: Generate embeddings ---")
         generate_embeddings()
 
-        # Step 7: Extract predicate edges from PDF text
+        # Step 7: Extract predicate edges
         logger.info("--- Step 7: Extract predicate edges ---")
         extract_predicate_edges()
 
         # Step 8: Load into Neo4j
         logger.info("--- Step 8: Load graph into Neo4j ---")
-        load_graph()
+        load_graph(category)
 
         extracted_count = len(extracted)
         intended_use_count = len(intended_use_df)
@@ -104,10 +122,35 @@ def run_pipeline() -> None:
                 "intended_use_rate": intended_use_count / extracted_count if extracted_count else 0.0,
                 "total_duration_s": time.perf_counter() - t_start,
             },
+            category=category,
         )
 
-    logger.info("=== MedPredict Pipeline Complete ===")
+    logger.info("=== MedPredict Pipeline Complete — category: %s ===", category)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run the MedPredict data pipeline.")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--category",
+        choices=list(DEVICE_CATEGORIES.keys()),
+        help="Run pipeline for a single device category.",
+    )
+    group.add_argument(
+        "--all",
+        action="store_true",
+        help="Run pipeline for all device categories in sequence.",
+    )
+    args = parser.parse_args()
+
+    config.validate()
+
+    if args.all:
+        for category in DEVICE_CATEGORIES:
+            run_pipeline(category)
+    else:
+        run_pipeline(args.category)
 
 
 if __name__ == "__main__":
-    run_pipeline()
+    main()

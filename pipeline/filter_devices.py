@@ -1,8 +1,9 @@
 """
 Loads the raw FDA 510(k) PMN flat file and filters it down to:
-  - Ultrasound product codes defined in config
+  - Product codes for the specified device category
   - Cleared decisions only
   - Submissions on or after MIN_SUBMISSION_YEAR
+  - Optional include/exclude term filtering for mixed-code categories (e.g. wearables)
 
 Writes the result to DEVICES_FILTERED_PATH.
 """
@@ -11,9 +12,9 @@ import pandas as pd
 
 from config import (
     CLEARED_DECISION_CODES,
+    DEVICE_CATEGORIES,
     DEVICES_FILTERED_PATH,
     MIN_SUBMISSION_YEAR,
-    ULTRASOUND_PRODUCT_CODES,
     PMN_RAW_PATH,
     PMN_RELAT_PATH,
     get_logger,
@@ -195,18 +196,19 @@ def _join_predicate_relations(
     return merged
 
 
-def _filter_by_product_code(df: pd.DataFrame) -> pd.DataFrame:
+def _filter_by_product_code(df: pd.DataFrame, product_codes: list[str]) -> pd.DataFrame:
     """
-    Keep only rows whose PRODUCTCODE is in the ultrasound target set.
+    Keep only rows whose PRODUCTCODE is in the given set.
 
     Args:
         df: Raw PMN DataFrame.
+        product_codes: List of product codes to keep.
 
     Returns:
         Filtered DataFrame.
     """
     before = len(df)
-    mask = df[COL_PRODUCTCODE].str.strip().isin(ULTRASOUND_PRODUCT_CODES)
+    mask = df[COL_PRODUCTCODE].str.strip().isin(product_codes)
     filtered = df[mask].copy()
     after = len(filtered)
 
@@ -214,16 +216,55 @@ def _filter_by_product_code(df: pd.DataFrame) -> pd.DataFrame:
         "Product code filter: %d → %d records (kept codes: %s)",
         before,
         after,
-        ULTRASOUND_PRODUCT_CODES,
+        product_codes,
     )
 
-    code_counts = (
-        filtered[COL_PRODUCTCODE]
-        .value_counts()
-        .to_dict()
-    )
+    code_counts = filtered[COL_PRODUCTCODE].value_counts().to_dict()
     logger.info("Records per product code: %s", code_counts)
 
+    return filtered
+
+
+def _filter_by_terms(
+    df: pd.DataFrame,
+    search_terms: list[str],
+    exclude_terms: list[str],
+) -> pd.DataFrame:
+    """
+    Keep rows whose DEVICENAME contains at least one search term and
+    none of the exclude terms (case-insensitive).
+
+    Used for mixed-code categories like wearables where a product code
+    contains both relevant and irrelevant devices.
+
+    Args:
+        df: DataFrame already filtered by product code.
+        search_terms: At least one must match the device name.
+        exclude_terms: Any match causes the row to be dropped.
+
+    Returns:
+        Filtered DataFrame.
+    """
+    before = len(df)
+    names = df[COL_DEVICENAME].str.lower().fillna("")
+
+    include_mask = names.apply(
+        lambda name: any(term.lower() in name for term in search_terms)
+    )
+    exclude_mask = names.apply(
+        lambda name: any(term.lower() in name for term in exclude_terms)
+    )
+
+    filtered = df[include_mask & ~exclude_mask].copy()
+    after = len(filtered)
+
+    logger.info(
+        "Term filter: %d → %d records (include: %s | exclude: %s)",
+        before,
+        after,
+        search_terms,
+        exclude_terms,
+    )
     return filtered
 
 
@@ -328,19 +369,37 @@ def _log_predicate_coverage(df: pd.DataFrame) -> None:
     )
 
 
-def filter_devices() -> pd.DataFrame:
+def filter_devices(category: str) -> pd.DataFrame:
     """
     Full filter pipeline: load raw records, apply all filters, write output.
 
+    Args:
+        category: Key from DEVICE_CATEGORIES (e.g. "ultrasound", "wearables").
+
     Returns:
         Filtered DataFrame written to DEVICES_FILTERED_PATH.
+
+    Raises:
+        ValueError: If category is not defined in DEVICE_CATEGORIES.
     """
+    if category not in DEVICE_CATEGORIES:
+        raise ValueError(
+            f"Unknown category '{category}'. "
+            f"Valid categories: {list(DEVICE_CATEGORIES.keys())}"
+        )
+
+    cat = DEVICE_CATEGORIES[category]
+    logger.info("Filtering devices for category: %s (%s)", category, cat["label"])
+
     df = load_pmn_records()
-    df = _filter_by_product_code(df)
+    df = _filter_by_product_code(df, cat["product_codes"])
     df = _filter_by_decision(df)
     df = _parse_decision_date(df)
     df = _filter_by_year(df)
     df = _clean_k_numbers(df)
+
+    if cat["filter_by_terms"]:
+        df = _filter_by_terms(df, cat["search_terms"], cat["exclude_terms"])
 
     relat_df = _load_predicate_relations()
     df = _join_predicate_relations(df, relat_df)

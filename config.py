@@ -48,14 +48,50 @@ EMBEDDINGS_CACHE_PATH = EMBEDDINGS_DIR / "embeddings_cache.pkl"
 PREDICATE_EDGES_PATH = PROCESSED_DIR / "predicate_edges.csv"
 
 # ---------------------------------------------------------------------------
-# Ultrasound Product Codes
+# Device Categories
 # ---------------------------------------------------------------------------
 
-ULTRASOUND_PRODUCT_CODES = [
-    "IYO",  # System, Imaging, Pulsed Echo, Ultrasonic
-    "IYN",  # System, Imaging, Pulsed Doppler, Ultrasonic
-    "ITX",  # Transducer, Ultrasonic, Diagnostic
-]
+DEVICE_CATEGORIES: dict = {
+    "ultrasound": {
+        "label": "Ultrasound Imaging",
+        "description": "Diagnostic ultrasound systems, Doppler imaging, and transducers",
+        "product_codes": ["IYO", "IYN", "ITX"],
+        "filter_by_terms": False,
+        "search_terms": [],
+        "exclude_terms": [],
+    },
+    "ai_ml_radiology": {
+        "label": "AI/ML Radiology",
+        "description": "AI-enabled diagnostic and detection systems",
+        "product_codes": ["QFM", "QAS", "QBS", "QDQ", "MYN", "POK"],
+        "filter_by_terms": False,
+        "search_terms": [],
+        "exclude_terms": [],
+    },
+    "wearables": {
+        "label": "Wearables & Continuous Monitors",
+        "description": "Wearable ECG, CGM, and pulse oximeters",
+        "product_codes": ["DPS", "DQA", "LNB", "NBW"],
+        "filter_by_terms": True,
+        "search_terms": [
+            "continuous glucose",
+            "CGM",
+            "wearable",
+            "continuous",
+            "smartwatch",
+            "patch",
+            "glucose sensor",
+            "glucose monitoring",
+        ],
+        "exclude_terms": [
+            "fingertip",
+            "handheld",
+            "portable",
+            "spot check",
+            "bedside",
+        ],
+    },
+}
 
 CLEARED_DECISION_CODES = ["SESE", "SE"]
 MIN_SUBMISSION_YEAR = 2005

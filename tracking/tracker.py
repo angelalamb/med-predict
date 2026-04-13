@@ -92,22 +92,25 @@ def pipeline_run(run_name: str):
         yield None
 
 
-def log_pipeline_metrics(run, metrics: dict) -> None:
+def log_pipeline_metrics(run, metrics: dict, category: str) -> None:
     """
     Log pipeline metrics to an active run. No-op if *run* is None.
 
     Args:
-        run:     The MLflow run object yielded by pipeline_run().
-        metrics: Numeric metrics dict, e.g. {"k_numbers_count": 312.0, ...}.
+        run:      The MLflow run object yielded by pipeline_run().
+        metrics:  Numeric metrics dict, e.g. {"k_numbers_count": 312.0, ...}.
+        category: Category key from DEVICE_CATEGORIES (e.g. "ultrasound").
     """
     if run is None or not _is_configured():
         return
     try:
         mlflow = _get_mlflow()
         mlflow.log_metrics(metrics)
+        cat = config.DEVICE_CATEGORIES.get(category, {})
         mlflow.log_params(
             {
-                "product_codes": ",".join(config.ULTRASOUND_PRODUCT_CODES),
+                "category": category,
+                "product_codes": ",".join(cat.get("product_codes", [])),
                 "min_year": str(config.MIN_SUBMISSION_YEAR),
                 "prompt_version": config.PROMPT_VERSION,
             }

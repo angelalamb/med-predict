@@ -52,7 +52,8 @@ SET d.device_name    = row.device_name,
     d.applicant      = row.applicant,
     d.product_code   = row.product_code,
     d.decision_date  = row.decision_date,
-    d.intended_use   = row.intended_use
+    d.intended_use   = row.intended_use,
+    d.category       = row.category
 """
 
 _CREATE_PREDICATED_ON_EDGE = """
@@ -213,6 +214,7 @@ def _load_intended_use_map() -> dict[str, str]:
 def _build_node_records(
     devices_df: pd.DataFrame,
     intended_use_map: dict[str, str],
+    category: str,
 ) -> list[dict]:
     """
     Build the list of parameter dicts for node creation.
@@ -220,6 +222,7 @@ def _build_node_records(
     Args:
         devices_df: Filtered devices DataFrame.
         intended_use_map: K-number → intended use text.
+        category: Category key (e.g. "ultrasound") set as a node property.
 
     Returns:
         List of dicts ready for the Cypher UNWIND statement.
@@ -237,21 +240,23 @@ def _build_node_records(
                 "product_code": row.get("PRODUCTCODE", ""),
                 "decision_date": str(row.get("DECISIONDATE", "")),
                 "intended_use": intended_use_map.get(k, ""),
+                "category": category,
             }
         )
     return records
 
 
-def load_nodes(driver) -> None:
+def load_nodes(driver, category: str) -> None:
     """
     Create or update Device nodes in Neo4j from the filtered devices CSV.
 
     Args:
         driver: Active Neo4j driver.
+        category: Category key written to each node's category property.
     """
     devices_df = _load_devices_df()
     intended_use_map = _load_intended_use_map()
-    records = _build_node_records(devices_df, intended_use_map)
+    records = _build_node_records(devices_df, intended_use_map, category)
 
     logger.info("Loading %d Device nodes into Neo4j", len(records))
     _run_in_batches(driver, _MERGE_DEVICE_NODE, records, NEO4J_BATCH_SIZE, "Nodes")
@@ -357,18 +362,22 @@ def load_embeddings(driver) -> None:
 # ---------------------------------------------------------------------------
 
 
-def load_graph() -> None:
+def load_graph(category: str) -> None:
     """
     Full graph loading pipeline: schema → nodes → edges → embeddings.
 
     Creates a single driver, runs all three loading steps, then closes
-    the connection.
+    the connection. Uses MERGE so repeated runs and multiple categories
+    are additive — existing nodes are updated, not replaced.
+
+    Args:
+        category: Category key passed through to node records.
     """
     driver = _get_driver()
 
     try:
         create_schema(driver)
-        load_nodes(driver)
+        load_nodes(driver, category)
         load_edges(driver)
         load_embeddings(driver)
         logger.info("Graph loading pipeline complete")
