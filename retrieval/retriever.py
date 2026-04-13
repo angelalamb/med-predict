@@ -101,6 +101,7 @@ def retrieve(
     query: str,
     top_k: int = SEMANTIC_TOP_K,
     depth: int = GRAPH_TRAVERSAL_DEPTH,
+    categories: list[str] | None = None,
 ) -> dict:
     """
     Retrieve a subgraph of related Device nodes for a natural language query.
@@ -132,7 +133,7 @@ def retrieve(
 
     logger.info("Starting retrieval | top_k=%d | depth=%d", top_k, depth)
 
-    seeds = search(query, top_k=top_k)
+    seeds = search(query, top_k=top_k, categories=categories)
 
     if not seeds:
         logger.warning("Semantic search returned no results")

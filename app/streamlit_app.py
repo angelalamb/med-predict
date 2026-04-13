@@ -58,7 +58,7 @@ def _init_session_state() -> None:
             st.session_state[key] = value
 
 
-def _run_analysis(query: str, top_k: int, depth: int) -> None:
+def _run_analysis(query: str, top_k: int, depth: int, categories: list[str] | None) -> None:
     st.session_state.error = None
     st.session_state.result = None
 
@@ -66,9 +66,12 @@ def _run_analysis(query: str, top_k: int, depth: int) -> None:
 
     try:
         with st.spinner("Retrieving predicate network and generating analysis…"):
+            payload = {"query": query, "k": top_k, "depth": depth}
+            if categories:
+                payload["categories"] = categories
             response = requests.post(
                 f"{config.API_URL}/query",
-                json={"query": query, "k": top_k, "depth": depth},
+                json=payload,
                 headers={"X-API-Key": config.API_KEY},
                 timeout=120,
             )
@@ -132,7 +135,7 @@ def main() -> None:
     input_col, graph_col, analysis_col = st.columns([1.1, 2.2, 2.2])
 
     with input_col:
-        query, top_k, depth, submitted = render_query_form()
+        query, top_k, depth, categories, submitted = render_query_form()
 
         if submitted:
             if not query or not query.strip():
@@ -142,7 +145,7 @@ def main() -> None:
                 )
                 logger.warning("Empty query submitted — not running analysis")
             else:
-                _run_analysis(query.strip(), top_k, depth)
+                _run_analysis(query.strip(), top_k, depth, categories)
 
     with graph_col:
         st.markdown('<p class="panel-label">Predicate Network</p>', unsafe_allow_html=True)

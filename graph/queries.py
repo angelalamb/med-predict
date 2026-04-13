@@ -100,6 +100,7 @@ def get_subgraph_edges(k_numbers: list[str]) -> list[dict]:
 def vector_similarity_search(
     embedding: list[float],
     top_k: int = SEMANTIC_TOP_K,
+    categories: list[str] | None = None,
 ) -> list[dict]:
     """
     Find Device nodes whose embedding is most similar to the query embedding
@@ -109,8 +110,10 @@ def vector_similarity_search(
     for which we successfully extracted and embedded text).
 
     Args:
-        embedding: Query embedding as a list of floats.
-        top_k: Number of candidates to return.
+        embedding:   Query embedding as a list of floats.
+        top_k:       Number of candidates to return.
+        categories:  If provided, only seed nodes from these categories are
+                     returned. None means all categories.
 
     Returns:
         List of dicts with device properties plus a 'score' key
@@ -124,11 +127,17 @@ def vector_similarity_search(
     )
     YIELD node AS d, score
     WHERE d.intended_use IS NOT NULL AND d.intended_use <> ''
+      AND (size($categories) = 0 OR d.category IN $categories)
     RETURN d, score
     ORDER BY score DESC
     """
     with get_session() as session:
-        result = session.run(cypher, top_k=top_k, embedding=embedding)
+        result = session.run(
+            cypher,
+            top_k=top_k,
+            embedding=embedding,
+            categories=categories or [],
+        )
         records = [
             {**dict(r["d"]), "score": r["score"]}
             for r in result

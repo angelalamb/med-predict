@@ -1,6 +1,6 @@
 # MedPredict
 
-510(k) Predicate Intelligence for Diagnostic Ultrasound Devices
+510(k) Predicate Intelligence for Medical Devices
 
 MedPredict is a knowledge graph-augmented retrieval system that helps
 regulatory affairs teams identify candidate predicate devices for FDA
@@ -9,8 +9,9 @@ over intended use statements with graph traversal of the predicate
 network, and generates structured substantial equivalence analyses
 grounded in real cleared submission data.
 
-The system is scoped to diagnostic ultrasound devices and uses publicly
-available FDA 510(k) data as its knowledge base.
+The system covers three device categories: diagnostic ultrasound,
+AI/ML radiology software, and wearable continuous monitors. It uses
+publicly available FDA 510(k) data as its knowledge base.
 
 ---
 
@@ -42,34 +43,36 @@ since clearance.
 
 The system has five layers.
 
-The pipeline layer downloads FDA bulk data, filters to diagnostic
-ultrasound product codes, extracts intended use statements from 510(k)
+The pipeline layer downloads FDA bulk data, filters to the configured
+device categories, extracts intended use statements from 510(k)
 summary PDFs, generates sentence embeddings, and loads everything into
 a Neo4j graph database.
 
 The graph layer manages the Neo4j connection, schema, and all Cypher
-queries. Device nodes store structured attributes and embedding vectors.
-PREDICATED_ON edges encode the predicate network extracted from the
-PREDICATENUMBER field in the FDA data.
+queries. Device nodes store structured attributes, embedding vectors,
+and a category tag. PREDICATED_ON edges encode the predicate network
+extracted from the PREDICATENUMBER field in the FDA data.
 
 The retrieval layer combines two mechanisms. Semantic search embeds
 the user's query and finds the most similar device nodes using Neo4j's
-vector index. Graph traversal then expands those seed nodes by walking
-the predicate network in both directions, returning a subgraph of
-ancestors and descendants.
+vector index, optionally filtered to selected categories. Graph
+traversal then expands those seed nodes by walking the predicate
+network in both directions, returning a subgraph of ancestors and
+descendants.
 
 The generation layer formats the retrieved subgraph into a structured
 prompt and calls the Anthropic API to produce a ranked substantial
 equivalence analysis grounded in the retrieved device data.
 
-The API layer exposes the retrieval and generation pipeline as a
+The API layer exposes the retrieval and generation pipeline as an
 authenticated REST API built with FastAPI. Endpoints are rate-limited
 and require an API key.
 
-The Streamlit application connects directly to Neo4j and the Anthropic
-API and presents a two-panel interface: an interactive predicate network
-graph on the left and the generated analysis on the right. K-numbers in
-the analysis are linked directly to their FDA public records.
+The Streamlit application presents a two-panel interface: an
+interactive predicate network graph on the left and the generated
+analysis on the right. K-numbers in the analysis are linked directly
+to their FDA public records. Category filters allow scoping the search
+to one or more device types.
 
 ---
 
@@ -94,18 +97,39 @@ The pipeline downloads and processes these sources automatically.
 
 ---
 
-## Ultrasound Scope
+## Device Categories
 
-The system filters to the following FDA product codes by default.
-These can be extended in config.py.
+The system supports the following device categories, defined in
+config.py. Each category specifies product codes and optional
+include/exclude term filters for mixed-code categories.
+
+**Ultrasound Imaging**
 
     IYO    System, Imaging, Pulsed Echo, Ultrasonic
     IYN    System, Imaging, Pulsed Doppler, Ultrasonic
     ITX    Transducer, Ultrasonic, Diagnostic
 
+**AI/ML Radiology**
+
+    QFM    Radiological Computer-Assisted Prioritization (CADt)
+    QAS    Radiological Computer-Assisted Triage and Notification
+    QBS    Computer-Assisted Detection/Diagnosis — Fracture
+    QDQ    Computer-Assisted Detection/Diagnosis — Cancer
+    MYN    Medical Image Analyzers (CADe detection)
+    POK    Computer-Assisted Diagnostic Software for Cancer (CADx)
+
+**Wearables & Continuous Monitors**
+
+    DPS    Electrocardiograph (wearable ECG, filtered by device name)
+    DQA    Electrocardiograph (filtered by device name)
+    LNB    Glucose monitoring systems (filtered by device name)
+    NBW    Blood glucose meter (filtered by device name)
+
+Mixed-code categories like wearables use include/exclude term
+filtering on the device name to retain only relevant devices.
+
 Only cleared submissions (SESE or SE decision codes) from 2005 onwards
-are included. This keeps the dataset manageable and avoids the older
-scanned PDFs that do not yield reliable text extraction.
+are included across all categories.
 
 ---
 
@@ -131,7 +155,7 @@ scanned PDFs that do not yield reliable text extraction.
         pipeline/
             run_pipeline.py         Orchestrates all pipeline steps
             download_data.py        Downloads FDA flat files and PDFs
-            filter_devices.py       Filters to ultrasound records
+            filter_devices.py       Filters records by category
             extract_text.py         PDF text extraction via pdfplumber
             parse_intended_use.py   Parses intended use statements
             extract_predicates.py   Extracts predicate edges from FDA data
@@ -216,26 +240,33 @@ in your .env when running natively.
 The pipeline downloads data, processes it, and loads the graph. Run it
 once before starting the application, pointing your .env at the target
 Neo4j instance (local or AuraDB). Each step is idempotent and safe to
-re-run if interrupted.
+re-run if interrupted. The graph is additive — running multiple
+categories populates Neo4j without overwriting existing nodes.
 
-    python -m pipeline.run_pipeline
+Run a single category:
+
+    python -m pipeline.run_pipeline --category ultrasound
+    python -m pipeline.run_pipeline --category ai_ml_radiology
+    python -m pipeline.run_pipeline --category wearables
+
+Run all categories in sequence:
+
+    python -m pipeline.run_pipeline --all
 
 Pipeline steps in order:
 
     1. Download the FDA 510(k) flat file and product classification file
-    2. Filter records to ultrasound product codes
+    2. Filter records to the category's product codes and term filters
     3. Download 510(k) summary PDFs for filtered devices
     4. Extract text from PDFs using pdfplumber
     5. Parse intended use statements from extracted text
     6. Generate sentence embeddings using BAAI/bge-base-en-v1.5
-    7. Load device nodes, predicate edges, and embeddings into Neo4j
+    7. Extract predicate edges
+    8. Load device nodes, predicate edges, and embeddings into Neo4j
 
 PDF download takes the longest due to rate limiting between requests.
-Expect several hours for a full ultrasound corpus. The download
-is resumable — already-downloaded files are skipped on re-run.
-
-Embedding generation runs locally on CPU. On an M4 Mac with 24GB RAM
-this takes a few minutes for a corpus of a few thousand documents.
+Embedding generation runs locally on CPU. Both steps are resumable —
+already-downloaded files and cached embeddings are skipped on re-run.
 
 ---
 
@@ -261,6 +292,13 @@ All API endpoints except /health require an X-API-Key header.
       -H "Content-Type: application/json" \
       -H "X-API-Key: your-api-key" \
       -d '{"query": "portable diagnostic ultrasound system for abdominal imaging", "k": 5}'
+
+To filter results to specific categories:
+
+    curl -X POST http://localhost:8000/query \
+      -H "Content-Type: application/json" \
+      -H "X-API-Key: your-api-key" \
+      -d '{"query": "wearable ECG monitor", "k": 5, "categories": ["wearables"]}'
 
 ---
 
@@ -289,14 +327,10 @@ instance in production.
    API service only:
        API_KEY
 
+   Streamlit service only:
+       API_URL (public URL of the API service), API_KEY
+
 5. Trigger a deploy
-
-The Dockerfile installs CPU-only PyTorch to keep the image within
-Render's free tier memory limits.
-
-**Free tier note:** Render free tier services sleep after 15 minutes of
-inactivity and take approximately 30 seconds to wake on the next
-request.
 
 ---
 
@@ -320,15 +354,16 @@ Full interactive documentation is available at /docs when the API is running.
 All configurable values are in config.py. The most commonly adjusted
 settings are listed below.
 
-    ULTRASOUND_PRODUCT_CODES          List of FDA product codes to include
-    MIN_SUBMISSION_YEAR               Earliest submission year to include
-    SEMANTIC_TOP_K                    Default number of semantic candidates
-    GRAPH_TRAVERSAL_DEPTH             Default traversal depth
-    EMBEDDING_MODEL_NAME              Sentence transformer model
-    NEO4J_BATCH_SIZE                  Records per Neo4j write transaction
-    PDF_DOWNLOAD_DELAY                Seconds between PDF requests
-    CLAUDE_INPUT_TOKEN_COST           Per-token cost for input (USD)
-    CLAUDE_OUTPUT_TOKEN_COST          Per-token cost for output (USD)
+    DEVICE_CATEGORIES             Device category definitions with product
+                                  codes, labels, and term filters
+    MIN_SUBMISSION_YEAR           Earliest submission year to include
+    SEMANTIC_TOP_K                Default number of semantic candidates
+    GRAPH_TRAVERSAL_DEPTH         Default traversal depth
+    EMBEDDING_MODEL_NAME          Sentence transformer model
+    NEO4J_BATCH_SIZE              Records per Neo4j write transaction
+    PDF_DOWNLOAD_DELAY            Seconds between PDF requests
+    CLAUDE_INPUT_TOKEN_COST       Per-token cost for input (USD)
+    CLAUDE_OUTPUT_TOKEN_COST      Per-token cost for output (USD)
 
 ---
 
@@ -382,10 +417,15 @@ professional before use in a submission.
 
 ## Extending to Other Device Categories
 
-To extend the system to other FDA device categories, add the relevant
-product codes to ULTRASOUND_PRODUCT_CODES in config.py and re-run the
-pipeline. The graph schema, retrieval logic, and generation layer
-require no changes.
+To add a new device category, add an entry to DEVICE_CATEGORIES in
+config.py with the relevant product codes, label, and optional term
+filters. Then run the pipeline for the new category:
+
+    python -m pipeline.run_pipeline --category your_new_category
+
+The graph schema, retrieval logic, and generation layer require no
+changes. The new category will automatically appear in the Streamlit
+UI filter panel.
 
 ---
 

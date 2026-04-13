@@ -92,13 +92,19 @@ def _log_candidates(candidates: list[dict]) -> None:
         )
 
 
-def search(query: str, top_k: int = SEMANTIC_TOP_K) -> list[dict]:
+def search(
+    query: str,
+    top_k: int = SEMANTIC_TOP_K,
+    categories: list[str] | None = None,
+) -> list[dict]:
     """
     Embed a query and return the most semantically similar Device nodes.
 
     Args:
-        query: Natural language description of a device or intended use.
-        top_k: Number of candidate devices to return.
+        query:      Natural language description of a device or intended use.
+        top_k:      Number of candidate devices to return.
+        categories: If provided, only seed nodes from these categories are
+                    returned. None means all categories.
 
     Returns:
         List of device property dicts ordered by similarity score descending.
@@ -111,12 +117,9 @@ def search(query: str, top_k: int = SEMANTIC_TOP_K) -> list[dict]:
     logger.info("Running semantic search (top_k=%d)", top_k)
 
     embedding = _embed_query(query)
-    candidates = vector_similarity_search(embedding, top_k=top_k)
+    candidates = vector_similarity_search(embedding, top_k=top_k, categories=categories)
 
-    logger.info(
-        "Semantic search returned %d candidates",
-        len(candidates),
-    )
+    logger.info("Semantic search returned %d candidates", len(candidates))
     _log_candidates(candidates)
 
     return candidates

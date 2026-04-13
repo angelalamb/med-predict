@@ -94,7 +94,7 @@ async def query_devices(
     try:
         logger.info("Retrieving similar devices...")
         t_retrieval = time.perf_counter()
-        subgraph = retrieve(query=query_request.query, top_k=query_request.k, depth=query_request.depth)
+        subgraph = retrieve(query=query_request.query, top_k=query_request.k, depth=query_request.depth, categories=query_request.categories)
         retrieval_latency_ms = (time.perf_counter() - t_retrieval) * 1000
 
         retrieved_devices = subgraph["nodes"]

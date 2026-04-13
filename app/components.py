@@ -8,6 +8,8 @@ import re
 
 import streamlit as st
 
+import config
+
 
 def render_header() -> None:
     st.markdown(
@@ -20,12 +22,14 @@ def render_header() -> None:
     )
 
 
-def render_query_form() -> tuple[str, int, int, bool]:
+def render_query_form() -> tuple[str, int, int, list[str] | None, bool]:
     """
     Render the query input form.
 
     Returns:
-        Tuple of (query_text, top_k, depth, submitted).
+        Tuple of (query_text, top_k, depth, categories, submitted).
+        categories is None when Search All is used, or a list of category
+        keys when Search Selected is used.
     """
     query = st.text_area(
         "Device Description",
@@ -56,8 +60,24 @@ def render_query_form() -> tuple[str, int, int, bool]:
             key="depth",
         )
 
-    submitted = st.button("Analyse", use_container_width=True)
-    return query, top_k, depth, submitted
+    st.markdown("**Filters**")
+    checked = {
+        key: st.checkbox(cat["label"], value=True, key=f"cat_{key}")
+        for key, cat in config.DEVICE_CATEGORIES.items()
+    }
+
+    col_c, col_d = st.columns(2)
+    with col_c:
+        search_all = st.button("Search All", use_container_width=True)
+    with col_d:
+        search_selected = st.button("Search Selected", use_container_width=True)
+
+    if search_all:
+        return query, top_k, depth, None, True
+    if search_selected:
+        selected = [key for key, is_checked in checked.items() if is_checked]
+        return query, top_k, depth, selected or None, True
+    return query, top_k, depth, None, False
 
 
 def render_analysis_empty() -> None:

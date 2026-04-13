@@ -38,6 +38,10 @@ class QueryRequest(BaseModel):
         le=3,
         description="Graph traversal depth from seed nodes",
     )
+    categories: Optional[List[str]] = Field(
+        default=None,
+        description="Filter seed nodes to these categories. None means all categories.",
+    )
 
 
 class DeviceInfo(BaseModel):
