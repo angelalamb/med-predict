@@ -155,6 +155,7 @@ def log_query_async(
 
 def _log_query(metrics: dict, judge_input: Optional[dict], tags: dict) -> None:
     """Internal: write one query sample to MLFLOW_EXPERIMENT_QUERY."""
+    logger.debug("MLflow _log_query thread started")
     try:
         mlflow = _get_mlflow()
         _setup_tracking(mlflow)

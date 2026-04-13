@@ -127,6 +127,7 @@ async def query_devices(
             for device in retrieved_devices
         ]
 
+        logger.debug("MLflow sample rate: %s", config.MLFLOW_SAMPLE_RATE)
         if random.random() < config.MLFLOW_SAMPLE_RATE:
             seeds = [d for d in retrieved_devices if d.get("is_seed")]
             ancestors = [d for d in retrieved_devices if not d.get("is_seed") and d.get("direction") == "ancestor"]
