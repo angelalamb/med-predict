@@ -73,11 +73,12 @@ def _build_agraph_edges(edges: list[dict]) -> list[Edge]:
 
 
 def _build_agraph_config(node_count: int) -> Config:
-    spring_length = min(250 + node_count * 12, 600)
+    spring_length = min(300 + node_count * 15, 800)
+    gravity = max(-800 - node_count * 80, -4000)
 
     return Config(
         width="100%",
-        height=520,
+        height=600,
         directed=True,
         physics=True,
         hierarchical=False,
@@ -96,9 +97,9 @@ def _build_agraph_config(node_count: int) -> Config:
             "renderLabel": False,
         },
         d3={
-            "gravity": -1200,
+            "gravity": gravity,
             "linkLength": spring_length,
-            "linkStrength": 0.3,
+            "linkStrength": 0.2,
             "alphaTarget": 0.05,
         },
     )
