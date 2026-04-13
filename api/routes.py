@@ -94,7 +94,7 @@ async def query_devices(
     try:
         logger.info("Retrieving similar devices...")
         t_retrieval = time.perf_counter()
-        subgraph = retrieve(query=query_request.query, top_k=query_request.k)
+        subgraph = retrieve(query=query_request.query, top_k=query_request.k, depth=query_request.depth)
         retrieval_latency_ms = (time.perf_counter() - t_retrieval) * 1000
 
         retrieved_devices = subgraph["nodes"]
@@ -164,6 +164,13 @@ async def query_devices(
             query=query_request.query,
             answer=answer,
             sources=sources,
+            graph_data=subgraph,
+            metadata={
+                "model": config.LLM_MODEL,
+                "input_tokens": tokens["input"],
+                "output_tokens": tokens["output"],
+                "prompt_version": config.PROMPT_VERSION,
+            },
             timestamp=datetime.now(timezone.utc).isoformat(),
             tokens_used=tokens,
         )

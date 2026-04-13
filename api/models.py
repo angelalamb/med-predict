@@ -15,6 +15,7 @@ class QueryRequest(BaseModel):
             "example": {
                 "query": "What ultrasound devices are similar to Acuson S2000?",
                 "k": 5,
+                "depth": 2,
             }
         }
     )
@@ -30,6 +31,12 @@ class QueryRequest(BaseModel):
         ge=1,
         le=10,
         description="Number of similar devices to retrieve",
+    )
+    depth: int = Field(
+        default=2,
+        ge=1,
+        le=3,
+        description="Graph traversal depth from seed nodes",
     )
 
 
@@ -49,6 +56,8 @@ class QueryResponse(BaseModel):
     query: str
     answer: str
     sources: List[DeviceInfo]
+    graph_data: dict
+    metadata: dict
     timestamp: str
     tokens_used: Optional[dict] = None
 

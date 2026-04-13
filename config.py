@@ -126,6 +126,13 @@ API_VERSION = "1.0.0"
 
 DATABRICKS_HOST = os.getenv("DATABRICKS_HOST", "")
 DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN", "")  # never logged
+
+# ---------------------------------------------------------------------------
+# Streamlit → API
+# ---------------------------------------------------------------------------
+
+API_URL = os.getenv("API_URL", "http://localhost:8000")
+API_KEY = os.getenv("API_KEY", "")
 MLFLOW_SAMPLE_RATE = float(os.getenv("MLFLOW_SAMPLE_RATE", "0.1"))
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", LLM_MODEL)
 PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1")
