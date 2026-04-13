@@ -15,7 +15,7 @@ def render_header() -> None:
     st.markdown(
         """
         <p class="wordmark">Med<span>Predict</span></p>
-        <p class="tagline">510(k) Predicate Intelligence · Diagnostic Ultrasound</p>
+        <p class="tagline">510(k) Predicate Intelligence · Ultrasound · AI/ML Radiology · Wearables</p>
         <hr class="rule">
         """,
         unsafe_allow_html=True,
