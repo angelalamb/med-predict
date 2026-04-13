@@ -98,7 +98,7 @@ def test_log_query_async_spawns_daemon_thread_when_configured(monkeypatch):
         mock_thread.return_value = mock_instance
         log_query_async({"cost_usd": 0.01}, None, {"source": "api"})
         mock_thread.assert_called_once()
-        # daemon=True so the thread does not block process shutdown
+        # daemon=False so the thread survives process restarts and completes MLflow calls
         _, kwargs = mock_thread.call_args
-        assert kwargs.get("daemon") is True
+        assert kwargs.get("daemon") is False
         mock_instance.start.assert_called_once()

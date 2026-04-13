@@ -62,12 +62,7 @@ def _run_analysis(query: str, top_k: int, depth: int) -> None:
     st.session_state.error = None
     st.session_state.result = None
 
-    logger.info(
-        "Analysis requested | top_k=%d | depth=%d | query=%r",
-        top_k,
-        depth,
-        query[:120],
-    )
+    logger.info("Analysis requested | top_k=%d | depth=%d", top_k, depth)
 
     try:
         with st.spinner("Retrieving predicate network and generating analysis…"):

@@ -89,7 +89,7 @@ async def query_devices(
       -d '{"query": "What devices are similar to Acuson?", "k": 5}'
 ```
     """
-    logger.info("Query received: '%s' (k=%d)", query_request.query, query_request.k)
+    logger.info("Query received (k=%d)", query_request.k)
 
     try:
         logger.info("Retrieving similar devices...")

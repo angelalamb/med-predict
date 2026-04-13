@@ -108,11 +108,7 @@ def search(query: str, top_k: int = SEMANTIC_TOP_K) -> list[dict]:
         logger.warning("Empty query passed to semantic search — returning no results")
         return []
 
-    logger.info(
-        "Running semantic search (top_k=%d) for query: %r",
-        top_k,
-        query[:120],
-    )
+    logger.info("Running semantic search (top_k=%d)", top_k)
 
     embedding = _embed_query(query)
     candidates = vector_similarity_search(embedding, top_k=top_k)

@@ -175,18 +175,17 @@ def generate(query: str, subgraph: dict, prompt_version: str = "v1") -> dict:
     nodes = subgraph.get("nodes", [])
 
     if not nodes:
-        logger.warning("generate() called with empty subgraph for query: %r", query[:80])
+        logger.warning("generate() called with empty subgraph")
         raise ValueError(
             "Cannot generate analysis: subgraph contains no device nodes. "
             "Check that the retrieval step returned results."
         )
 
     logger.info(
-        "Generating analysis | nodes=%d | edges=%d | model=%s | query=%r",
+        "Generating analysis | nodes=%d | edges=%d | model=%s",
         len(nodes),
         len(subgraph.get("edges", [])),
         LLM_MODEL,
-        query[:80],
     )
 
     client = _get_client()

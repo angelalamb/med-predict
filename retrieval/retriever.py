@@ -75,20 +75,18 @@ def _filter_nodes_without_intended_use(subgraph: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _log_retrieval_time(start: float, query: str, subgraph: dict) -> None:
+def _log_retrieval_time(start: float, subgraph: dict) -> None:
     """
     Log end-to-end retrieval time and subgraph summary.
 
     Args:
         start: Unix timestamp from time.time() at retrieval start.
-        query: Original query string.
         subgraph: Assembled subgraph dict.
     """
     elapsed = time.time() - start
     logger.info(
-        "Retrieval complete in %.2fs | query=%r | nodes=%d | edges=%d",
+        "Retrieval complete in %.2fs | nodes=%d | edges=%d",
         elapsed,
-        query[:80],
         len(subgraph["nodes"]),
         len(subgraph["edges"]),
     )
@@ -132,12 +130,7 @@ def retrieve(
     """
     start = time.time()
 
-    logger.info(
-        "Starting retrieval | top_k=%d | depth=%d | query=%r",
-        top_k,
-        depth,
-        query[:120],
-    )
+    logger.info("Starting retrieval | top_k=%d | depth=%d", top_k, depth)
 
     seeds = search(query, top_k=top_k)
 
@@ -148,6 +141,6 @@ def retrieve(
     subgraph = expand(seeds, depth=depth)
     subgraph = _filter_nodes_without_intended_use(subgraph)
 
-    _log_retrieval_time(start, query, subgraph)
+    _log_retrieval_time(start, subgraph)
 
     return subgraph
