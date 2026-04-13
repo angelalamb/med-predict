@@ -9,6 +9,7 @@ silent no-op — tracking must never crash or slow down the application.
 import threading
 import time
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Optional
 
 import config
@@ -161,7 +162,8 @@ def _log_query(metrics: dict, judge_input: Optional[dict], tags: dict) -> None:
         _setup_tracking(mlflow)
         exp_id = _get_or_create_experiment(mlflow, config.MLFLOW_EXPERIMENT_QUERY)
 
-        with mlflow.start_run(experiment_id=exp_id):
+        run_name = "query_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        with mlflow.start_run(experiment_id=exp_id, run_name=run_name):
             mlflow.log_metrics(metrics)
             mlflow.set_tags(tags)
 
