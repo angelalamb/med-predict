@@ -12,6 +12,7 @@ PREDICATED_ON edges ready for load_graph.load_edges().
 import json
 import re
 import pandas as pd
+
 from config import (
     EXTRACTED_TEXT_PATH,
     DEVICES_FILTERED_PATH,
