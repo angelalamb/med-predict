@@ -15,7 +15,6 @@ sys.path.append(str(Path(__file__).parent.parent))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
-
 from config import API_VERSION, get_logger, validate
 from limiter import limiter
 from routes import rate_limit_handler, router
