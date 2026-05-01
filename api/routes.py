@@ -50,7 +50,7 @@ async def health_check(request: Request):
     except Exception:
         neo4j_status = "unavailable"
 
-    generator_status = "ok" if ANTHROPIC_API_KEY else "api_key_missing"
+    generator_status = "ok" if ANTHROPIC_API_KEY else "unavailable"
 
     overall = "healthy" if neo4j_status == "connected" and generator_status == "ok" else "degraded"
 

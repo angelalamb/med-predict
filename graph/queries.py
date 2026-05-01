@@ -16,6 +16,7 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 def get_ancestors(k_number: str, depth: int = GRAPH_TRAVERSAL_DEPTH) -> list[dict]:
+    depth = max(1, min(int(depth), 3))
     cypher = f"""
     MATCH path = (start:Device {{k_number: $k_number}})
                  -[:PREDICATED_ON*1..{depth}]->(ancestor:Device)
@@ -36,6 +37,7 @@ def get_ancestors(k_number: str, depth: int = GRAPH_TRAVERSAL_DEPTH) -> list[dic
 
 
 def get_descendants(k_number: str, depth: int = GRAPH_TRAVERSAL_DEPTH) -> list[dict]:
+    depth = max(1, min(int(depth), 3))
     cypher = f"""
     MATCH path = (descendant:Device)
                  -[:PREDICATED_ON*1..{depth}]->(start:Device {{k_number: $k_number}})
