@@ -15,7 +15,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
-from config import API_VERSION, get_logger, validate
+from config import ALLOWED_ORIGINS, API_VERSION, get_logger, validate
 from limiter import limiter
 from routes import rate_limit_handler, router
 
@@ -54,7 +54,7 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

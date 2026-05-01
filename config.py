@@ -155,6 +155,7 @@ CLAUDE_OUTPUT_TOKEN_COST = 0.000015
 # ---------------------------------------------------------------------------
 
 API_VERSION = "1.0.0"
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:8501").split(",") if o.strip()]
 
 # ---------------------------------------------------------------------------
 # MLflow / Databricks Tracking
