@@ -10,10 +10,8 @@ import io
 import time
 import zipfile
 from pathlib import Path
-
 import pandas as pd
 import requests
-
 from config import (
     FDA_510K_URL,
     FDA_PDF_BASE_URL,

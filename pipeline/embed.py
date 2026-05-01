@@ -8,11 +8,9 @@ properties, and at query time by the retrieval layer.
 
 import pickle
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
-
 from config import (
     EMBEDDING_BATCH_SIZE,
     EMBEDDING_MODEL_NAME,

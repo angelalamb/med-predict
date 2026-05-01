@@ -9,10 +9,8 @@ here rather than instantiating their own drivers.
 """
 
 from contextlib import contextmanager
-
 from neo4j import GraphDatabase, Session
 from neo4j.exceptions import AuthError, ServiceUnavailable
-
 from config import (
     NEO4J_PASSWORD,
     NEO4J_URI,

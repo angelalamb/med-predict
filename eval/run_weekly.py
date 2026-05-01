@@ -15,7 +15,6 @@ Run from the project root::
 
 import sys
 from datetime import datetime, timedelta, timezone
-
 import config
 from config import get_logger
 

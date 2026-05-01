@@ -6,9 +6,7 @@ Output is a JSON file mapping K-number → extracted text.
 """
 
 import json
-
 import pdfplumber
-
 from config import (
     EXTRACTED_TEXT_PATH,
     MIN_EXTRACTED_CHARS,

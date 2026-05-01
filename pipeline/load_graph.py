@@ -11,7 +11,6 @@ All writes are batched for performance.
 
 import pandas as pd
 from neo4j import GraphDatabase, basic_auth
-
 from config import (
     DEVICES_FILTERED_PATH,
     EMBEDDINGS_CACHE_PATH,

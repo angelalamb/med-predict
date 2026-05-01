@@ -6,7 +6,6 @@ Builds and renders the interactive predicate network graph (left panel).
 
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
-
 from config import get_logger
 
 logger = get_logger(__name__)

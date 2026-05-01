@@ -18,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import requests
 import streamlit as st
-
 import config
 from app.components import (
     render_analysis,

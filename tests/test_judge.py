@@ -9,9 +9,7 @@ Focus areas:
 """
 
 from unittest.mock import MagicMock
-
 import pytest
-
 import config
 from eval.judge import LLMJudge, _build_judge_prompt, _extract_scores
 

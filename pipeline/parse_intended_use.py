@@ -6,9 +6,7 @@ Writes results to INTENDED_USE_PATH as a CSV.
 """
 
 import re
-
 import pandas as pd
-
 from config import (
     INTENDED_USE_HEADERS,
     INTENDED_USE_PATH,

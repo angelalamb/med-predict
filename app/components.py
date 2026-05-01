@@ -5,9 +5,7 @@ Renders the header, query form, and analysis panel (right panel).
 """
 
 import re
-
 import streamlit as st
-
 import config
 
 

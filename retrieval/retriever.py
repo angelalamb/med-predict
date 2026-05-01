@@ -10,7 +10,6 @@ calling semantic_search or graph_traversal directly.
 """
 
 import time
-
 from config import GRAPH_TRAVERSAL_DEPTH, SEMANTIC_TOP_K, get_logger
 from retrieval.graph_traversal import expand
 from retrieval.semantic_search import search

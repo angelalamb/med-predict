@@ -3,9 +3,7 @@ Pydantic request and response schemas for the MedPredict API.
 """
 
 from typing import List, Optional
-
 from pydantic import BaseModel, ConfigDict, Field
-
 
 class QueryRequest(BaseModel):
     """Request schema for device queries."""

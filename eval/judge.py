@@ -8,9 +8,7 @@ analysis text are never persisted — evaluation is entirely in-memory.
 
 import json
 import re
-
 import anthropic
-
 import config
 from config import get_logger
 

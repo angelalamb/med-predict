@@ -4,9 +4,7 @@ API key authentication dependency for the MedPredict API.
 
 import os
 import secrets
-
 from fastapi import Header, HTTPException
-
 from config import get_logger
 
 logger = get_logger(__name__)

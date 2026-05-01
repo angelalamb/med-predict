@@ -5,11 +5,9 @@ API route handlers for the MedPredict API.
 import random
 import time
 from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
-
 import config
 from auth import verify_api_key
 from config import (

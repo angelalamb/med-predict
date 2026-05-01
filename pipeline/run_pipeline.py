@@ -23,7 +23,6 @@ without overwriting existing nodes.
 import argparse
 import time
 from datetime import datetime, timezone
-
 import config
 from config import DEVICE_CATEGORIES, get_logger
 from pipeline.download_data import download_pdfs, download_pmn_records, download_predicate_relations, download_product_codes

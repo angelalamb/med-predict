@@ -9,7 +9,6 @@ Writes the result to DEVICES_FILTERED_PATH.
 """
 
 import pandas as pd
-
 from config import (
     CLEARED_DECISION_CODES,
     DEVICE_CATEGORIES,

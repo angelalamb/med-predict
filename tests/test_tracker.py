@@ -7,9 +7,7 @@ when credentials are absent, so it can never break the production API.
 """
 
 from unittest.mock import MagicMock, patch
-
 import pytest
-
 import config
 import tracking.tracker as tracker_module
 from tracking.tracker import (
