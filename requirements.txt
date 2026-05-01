@@ -14,7 +14,6 @@ neo4j>=5.0
 # Embeddings
 sentence-transformers>=2.7
 numpy>=1.26
-torch>=2.0
 
 # LLM generation
 anthropic>=0.25
@@ -24,7 +23,7 @@ streamlit>=1.35
 streamlit-agraph>=0.0.45
 markdown>=3.6
 
-# API (NEW)
+# APIyes
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.6.0
