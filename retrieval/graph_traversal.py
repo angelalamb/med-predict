@@ -6,12 +6,10 @@ Returns a structured subgraph object containing nodes and edges,
 deduplicated and ready to pass to the generation layer or UI.
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from config import GRAPH_TRAVERSAL_DEPTH, get_logger
-from graph.queries import (
-    get_ancestors,
-    get_descendants,
-    get_subgraph_edges,
-)
+from graph.queries import get_related_devices, get_subgraph_edges
 
 logger = get_logger(__name__)
 
@@ -111,24 +109,11 @@ def _expand_single_seed(
     Returns:
         List of related device dicts with 'direction' and 'hop' keys.
     """
-    ancestors = get_ancestors(seed_k_number, depth=depth)
-    descendants = get_descendants(seed_k_number, depth=depth)
-
+    related = get_related_devices(seed_k_number, depth=depth)
     logger.debug(
-        "Seed %s expanded to %d ancestors and %d descendants",
-        seed_k_number,
-        len(ancestors),
-        len(descendants),
+        "Seed %s expanded to %d related devices", seed_k_number, len(related)
     )
-
-    tagged_ancestors = [
-        {**node, "direction": "ancestor"} for node in ancestors
-    ]
-    tagged_descendants = [
-        {**node, "direction": "descendant"} for node in descendants
-    ]
-
-    return tagged_ancestors + tagged_descendants
+    return related
 
 
 def _collect_all_nodes(
@@ -136,7 +121,7 @@ def _collect_all_nodes(
     depth: int,
 ) -> list[dict]:
     """
-    Expand all seed nodes and collect every reachable device node.
+    Expand all seed nodes in parallel and collect every reachable device node.
 
     Seed nodes themselves are included in the result with direction='seed'.
 
@@ -149,20 +134,19 @@ def _collect_all_nodes(
     """
     seed_k_numbers = set(_extract_k_numbers(seeds))
 
-    # Start with the seeds themselves
-    all_nodes = [
-        {**seed, "direction": "seed"}
-        for seed in seeds
-    ]
+    all_nodes = [{**seed, "direction": "seed"} for seed in seeds]
 
-    for seed in seeds:
-        k_number = seed.get("k_number")
-        if not k_number:
-            logger.warning("Seed device missing k_number — skipping expansion")
-            continue
+    valid_seeds = [s for s in seeds if s.get("k_number")]
+    if len(valid_seeds) < len(seeds):
+        logger.warning("Skipping %d seeds missing k_number", len(seeds) - len(valid_seeds))
 
-        related = _expand_single_seed(k_number, depth=depth)
-        all_nodes.extend(related)
+    with ThreadPoolExecutor(max_workers=len(valid_seeds)) as executor:
+        futures = {
+            executor.submit(_expand_single_seed, seed["k_number"], depth): seed["k_number"]
+            for seed in valid_seeds
+        }
+        for future in as_completed(futures):
+            all_nodes.extend(future.result())
 
     deduped = _deduplicate_nodes(all_nodes)
     tagged = _tag_seed_nodes(deduped, seed_k_numbers)

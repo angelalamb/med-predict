@@ -15,44 +15,36 @@ logger = get_logger(__name__)
 # Predicate graph traversal
 # ---------------------------------------------------------------------------
 
-def get_ancestors(k_number: str, depth: int = GRAPH_TRAVERSAL_DEPTH) -> list[dict]:
+def get_related_devices(k_number: str, depth: int = GRAPH_TRAVERSAL_DEPTH) -> list[dict]:
+    """
+    Fetch ancestors and descendants of a device in a single Cypher round trip.
+
+    Args:
+        k_number: K-number of the seed device.
+        depth: Number of hops to traverse in each direction (clamped 1–3).
+
+    Returns:
+        List of dicts with device properties plus 'hop' and 'direction'
+        ('ancestor' or 'descendant') keys.
+    """
     depth = max(1, min(int(depth), 3))
     cypher = f"""
     MATCH path = (start:Device {{k_number: $k_number}})
                  -[:PREDICATED_ON*1..{depth}]->(ancestor:Device)
-    RETURN DISTINCT ancestor,
-           length(path) AS hop
-    ORDER BY hop ASC
-    """
-    with get_session() as session:
-        result = session.run(cypher, k_number=k_number.upper())
-        records = [
-            {**dict(r["ancestor"]), "hop": r["hop"]}
-            for r in result
-        ]
-    logger.debug(
-        "Found %d ancestors for %s (depth=%d)", len(records), k_number, depth
-    )
-    return records
-
-
-def get_descendants(k_number: str, depth: int = GRAPH_TRAVERSAL_DEPTH) -> list[dict]:
-    depth = max(1, min(int(depth), 3))
-    cypher = f"""
+    RETURN DISTINCT ancestor AS device, length(path) AS hop, 'ancestor' AS direction
+    UNION ALL
     MATCH path = (descendant:Device)
                  -[:PREDICATED_ON*1..{depth}]->(start:Device {{k_number: $k_number}})
-    RETURN DISTINCT descendant,
-           length(path) AS hop
-    ORDER BY hop ASC
+    RETURN DISTINCT descendant AS device, length(path) AS hop, 'descendant' AS direction
     """
     with get_session() as session:
         result = session.run(cypher, k_number=k_number.upper())
         records = [
-            {**dict(r["descendant"]), "hop": r["hop"]}
+            {**dict(r["device"]), "hop": r["hop"], "direction": r["direction"]}
             for r in result
         ]
     logger.debug(
-        "Found %d descendants for %s (depth=%d)", len(records), k_number, depth
+        "Found %d related devices for %s (depth=%d)", len(records), k_number, depth
     )
     return records
 
