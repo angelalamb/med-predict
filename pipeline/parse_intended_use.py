@@ -28,6 +28,17 @@ _NEXT_SECTION_PATTERN = re.compile(
     re.MULTILINE,
 )
 
+# Phrases that signal the start of standard FDA boilerplate following the
+# intended use section in clearance letters.
+_BOILERPLATE_PATTERN = re.compile(
+    r"You may,?\s+therefore,?\s+market"
+    r"|substantially equivalent to"
+    r"|general controls provisions"
+    r"|subject to the general controls"
+    r"|premarket approval application \(PMA\)",
+    re.IGNORECASE,
+)
+
 
 def _build_header_pattern(headers: list[str]) -> re.Pattern:
     """
@@ -77,14 +88,17 @@ def _extract_section_text(text: str, start: int) -> str:
     """
     remaining = text[start:]
 
-    # Find the next section header after our start position
+    end = len(remaining)
+
     next_section = _NEXT_SECTION_PATTERN.search(remaining)
     if next_section and next_section.start() > 20:
-        # Only truncate if the next section is not immediately adjacent
-        return remaining[: next_section.start()]
+        end = min(end, next_section.start())
 
-    # Fall back: take up to 1000 characters (intended use is never that long)
-    return remaining[:1000]
+    boilerplate = _BOILERPLATE_PATTERN.search(remaining)
+    if boilerplate and boilerplate.start() > 20:
+        end = min(end, boilerplate.start())
+
+    return remaining[:min(end, 500)]
 
 
 def _clean_section_text(raw: str) -> str:
@@ -117,6 +131,12 @@ def _is_valid_intended_use(text: str) -> bool:
         True if text meets minimum quality criteria.
     """
     if len(text) < 20:
+        return False
+    # Clearance letters that defer to an enclosure have no extractable content
+    if "stated in the enclosure" in text.lower():
+        return False
+    # PRA statement header from the 510(k) summary form, not actual content
+    if "pra statement" in text.lower():
         return False
     # Should contain at least one verb-like word common in intended use
     keywords = ["intended", "indicated", "designed", "used", "device", "patient"]
@@ -203,9 +223,9 @@ def parse_intended_use(
             failed_count += 1
 
     df = pd.DataFrame(records)
+    df.to_csv(INTENDED_USE_PATH, index=False)
 
     if not df.empty:
-        df.to_csv(INTENDED_USE_PATH, index=False)
         logger.info(
             "Parsing complete: %d/%d succeeded (%.1f%%). "
             "Average char count: %.0f. Written to %s",

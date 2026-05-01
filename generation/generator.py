@@ -8,9 +8,7 @@ Two public interfaces:
 
 import os
 import time
-
 import anthropic
-
 from config import ANTHROPIC_API_KEY, LLM_MODEL, get_logger
 from generation.prompts import IRRELEVANT_QUERY_SENTINEL, get_system_prompt, render_user_prompt
 
