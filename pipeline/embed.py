@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from config import (
+    DEVICES_FILTERED_PATH,
     EMBEDDING_BATCH_SIZE,
     EMBEDDING_MODEL_NAME,
     EMBEDDINGS_CACHE_PATH,
@@ -95,29 +96,58 @@ def _save_cache(cache: dict[str, list[float]], cache_path: Path) -> None:
 
 
 def _load_intended_use_df() -> pd.DataFrame:
-    """
-    Load the intended use CSV produced by parse_intended_use.py.
-
-    Returns:
-        DataFrame with k_number and intended_use_text columns.
-
-    Raises:
-        FileNotFoundError: If the intended use CSV does not exist.
-    """
     if not INTENDED_USE_PATH.exists():
         raise FileNotFoundError(
             f"Intended use file not found at {INTENDED_USE_PATH}. "
             "Run parse_intended_use.parse_intended_use() first."
         )
-
     df = pd.read_csv(INTENDED_USE_PATH, dtype=str)
     df = df.dropna(subset=["k_number", "intended_use_text"])
-    logger.info(
-        "Loaded %d intended use statements from %s",
-        len(df),
-        INTENDED_USE_PATH,
-    )
+    logger.info("Loaded %d intended use statements from %s", len(df), INTENDED_USE_PATH)
     return df
+
+
+def _build_embedding_df() -> pd.DataFrame:
+    """
+    Build the DataFrame of texts to embed for the current category.
+
+    Combines intended use (if available) and device name into a single
+    embedding text. Intended use comes first to carry more semantic weight.
+    Devices without intended use are embedded using device name only.
+
+    Returns:
+        DataFrame with columns: k_number, embedding_text.
+    """
+    iu_df = _load_intended_use_df()[["k_number", "intended_use_text"]]
+
+    if not DEVICES_FILTERED_PATH.exists():
+        logger.warning("Filtered devices file not found — embedding intended use only")
+        iu_df["embedding_text"] = iu_df["intended_use_text"]
+        return iu_df[["k_number", "embedding_text"]]
+
+    dev_df = pd.read_csv(DEVICES_FILTERED_PATH, dtype=str)
+    dev_df = dev_df.rename(columns={"KNUMBER": "k_number", "DEVICENAME": "device_name"})
+    dev_df = dev_df[["k_number", "device_name"]].dropna(subset=["k_number"])
+
+    merged = dev_df.merge(iu_df, on="k_number", how="left")
+
+    def _build_text(row) -> str:
+        iu = row.get("intended_use_text", "")
+        name = str(row.get("device_name", "") or "").strip()
+        if pd.notna(iu) and str(iu).strip():
+            return f"{str(iu).strip()} {name}".strip()
+        return name
+
+    merged["embedding_text"] = merged.apply(_build_text, axis=1)
+    merged = merged[merged["embedding_text"].str.strip() != ""]
+
+    logger.info(
+        "Built embedding texts for %d devices (%d with intended use, %d name-only)",
+        len(merged),
+        merged["intended_use_text"].notna().sum(),
+        merged["intended_use_text"].isna().sum(),
+    )
+    return merged[["k_number", "embedding_text"]]
 
 
 def _identify_uncached(
@@ -183,15 +213,15 @@ def _embed_in_batches(
 
 def generate_embeddings() -> dict[str, list[float]]:
     """
-    Generate embeddings for all intended use statements not yet in cache.
+    Generate embeddings for all devices not yet in cache.
 
-    Loads the intended use CSV, skips already-cached K-numbers,
-    encodes new texts in batches, updates the cache, and saves it.
+    Combines intended use text and device name into a single embedding text.
+    Devices without intended use are embedded using device name only.
 
     Returns:
         Complete embeddings cache dict mapping K-number → embedding list.
     """
-    df = _load_intended_use_df()
+    df = _build_embedding_df()
     cache = _load_cache(EMBEDDINGS_CACHE_PATH)
 
     to_embed = _identify_uncached(df, cache)
@@ -202,7 +232,7 @@ def generate_embeddings() -> dict[str, list[float]]:
 
     model = _load_model(EMBEDDING_MODEL_NAME)
 
-    texts = to_embed["intended_use_text"].tolist()
+    texts = to_embed["embedding_text"].tolist()
     k_numbers = to_embed["k_number"].tolist()
 
     logger.info("Generating embeddings for %d texts", len(texts))

@@ -118,9 +118,9 @@ INTENDED_USE_HEADERS = [
 # Embeddings
 # ---------------------------------------------------------------------------
 
-EMBEDDING_MODEL_NAME = "BAAI/bge-base-en-v1.5"
+EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 EMBEDDING_BATCH_SIZE = 64
-EMBEDDING_DIMENSION = 768
+EMBEDDING_DIMENSION = 384
 
 # ---------------------------------------------------------------------------
 # Neo4j

@@ -13,6 +13,7 @@ import pandas as pd
 from neo4j import GraphDatabase, basic_auth
 from config import (
     DEVICES_FILTERED_PATH,
+    EMBEDDING_DIMENSION,
     EMBEDDINGS_CACHE_PATH,
     INTENDED_USE_PATH,
     NEO4J_BATCH_SIZE,
@@ -35,13 +36,13 @@ CREATE CONSTRAINT device_k_number_unique IF NOT EXISTS
 FOR (d:Device) REQUIRE d.k_number IS UNIQUE
 """
 
-_CREATE_VECTOR_INDEX = """
+_CREATE_VECTOR_INDEX = f"""
 CREATE VECTOR INDEX device_embedding_index IF NOT EXISTS
 FOR (d:Device) ON (d.embedding)
-OPTIONS {indexConfig: {
-  `vector.dimensions`: 768,
+OPTIONS {{indexConfig: {{
+  `vector.dimensions`: {EMBEDDING_DIMENSION},
   `vector.similarity_function`: 'cosine'
-}}
+}}}}
 """
 
 _MERGE_DEVICE_NODE = """
